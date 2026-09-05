@@ -124,6 +124,36 @@ for (let i = 0; i < total; i++) {
 log(`Gen 2+3 Ghost = ${total} cards:`, ghosts.join(', '));
 log('every card Ghost-typed:', ghosts.every((n) => !n.startsWith('!!')) ? 'yes \u2713' : 'NO');
 
+log('--- multiple choice ---');
+await p.evaluate(() => { localStorage.clear(); });
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForSelector('#actions button');
+await settings(async () => { await p.click('#m-choice'); await p.locator('select').first().selectOption('0'); });
+await p.waitForSelector('.choices button');
+const strip = (a) => a.map((t) => t.replace(/^\d/, '').trim());
+let sameLetter = 0, malformed = 0, right = 0, wrong = 0;
+for (let i = 0; i < 30; i++) {
+  const opts = strip(await p.locator('.choices button').allTextContents());
+  if (opts.length !== 4 || new Set(opts).size !== 4) malformed++;
+  if (new Set(opts.map((n) => n[0].toUpperCase())).size === 1) sameLetter++;
+  await p.locator('.choices button').nth(i % 4).click();
+  const verdict = await p.locator('.result').textContent();
+  verdict.startsWith('\u2713') ? right++ : wrong++;
+  // the pick grades it, so the back offers Next rather than right/wrong
+  if (await p.locator('#actions button.good').count()) log('!! self-grade buttons showed in choice mode');
+  await p.click('#actions button');
+}
+log(`30 rounds: ${sameLetter} all-same-letter, ${malformed} malformed, ${right} right / ${wrong} wrong`);
+log('scored into the meter:', await p.locator('#countPill').textContent(),
+    '| retry bucket:', await p.locator('#retryPill').textContent());
+await p.keyboard.press('3');
+log('keyboard answer gave a verdict:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
+await p.keyboard.press(' ');
+log('space advanced to a fresh set of', await p.locator('.choices button').count(), 'options');
+await settings(async () => { await p.click('#m-flip'); });
+log('back in flip mode, Guess button present:',
+    (await p.locator('#actions button').textContent()).includes('Guess') ? 'yes \u2713' : 'NO');
+
 log('--- empty filter + reset ---');
 await settings(async () => { await p.click('text=None'); });
 log('all gens off:', (await p.locator('#card').innerText()).replace(/\n/g, ' / '));

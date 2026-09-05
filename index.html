@@ -107,6 +107,7 @@
   /* ---- actions ---- */
   .actions { display: grid; gap: 10px; }
   .actions.two { grid-template-columns: 1fr 1fr; }
+  .actions.choices { grid-template-columns: 1fr; gap: 8px; }
   button.big {
     appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
     border-radius: 13px; padding: 15px 12px; font-size: 16px; font-weight: 650; cursor: pointer;
@@ -120,6 +121,27 @@
   button.good small { color: color-mix(in srgb, var(--good) 70%, transparent); }
   button.bad { color: var(--bad); background: var(--bad-bg); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
   button.bad small { color: color-mix(in srgb, var(--bad) 70%, transparent); }
+
+  /* One choice per row — names run to 19 characters and must not truncate. */
+  button.choice { flex-direction: row; justify-content: center; gap: 9px; padding: 13px 12px; font-size: 15.5px; }
+  button.choice .n {
+    font-size: 11px; font-weight: 700; color: var(--ink-3); border: 1px solid var(--line);
+    border-radius: 6px; padding: 1px 6px; line-height: 1.4;
+  }
+  @media (hover: none) { button.choice .n { display: none; } }
+  /* Four stacked buttons need the room, so let the card give some back. */
+  .card.choosing { min-height: 0; }
+  .card.choosing .art-slot { max-width: 190px; }
+  .result { border-radius: 10px; padding: 7px 15px; font-weight: 700; font-size: 13.5px; margin-bottom: 10px; }
+  .result.ok { background: var(--good-bg); color: var(--good); }
+  .result.no { background: var(--bad-bg); color: var(--bad); }
+  /* On a short phone all four options still have to fit without scrolling. */
+  @media (max-height: 660px) {
+    .card.choosing { padding: 12px; }
+    .card.choosing .art-slot { max-width: 124px; }
+    button.choice { padding: 9px 10px; font-size: 15px; }
+    .actions.choices { gap: 6px; }
+  }
 
   /* ---- settings ---- */
   .sheet { display: none; }
@@ -221,7 +243,7 @@
   <section class="sheet" id="settings" aria-label="Settings"></section>
 
   <footer>
-    <span class="kbd-hint"><kbd>Space</kbd> flip · <kbd>←</kbd> missed · <kbd>→</kbd> got it · <kbd>P</kbd> pronounce</span>
+    <span class="kbd-hint" id="kbdHint"></span>
   </footer>
 </div>
 
@@ -235,6 +257,7 @@ const RETRY_GAP = 6;      // how many other cards to show before a missed card r
 const GEN_NAMES = ['', 'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Paldea'];
 
 const DEFAULTS = {
+  answerMode: 'flip',   // 'flip' = reveal and self-grade, 'choice' = pick one of four
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -351,6 +374,8 @@ const isDue = (card, now = Date.now()) => !progress[card.id] || progress[card.id
 
 // --------------------------------------------------------------- session state
 let view = 'study';           // 'study' | 'settings'
+let mcOptions = null;         // the four choices, when in multiple-choice mode
+let mcPicked = null;          // which one was chosen
 let queue = [];               // cards still to show this session
 let current = null;
 let flipped = false;
@@ -385,11 +410,54 @@ let missedThisSession = new Map();
 function next() {
   current = queue.shift() ?? null;
   flipped = false;
+  mcPicked = null;
+  mcOptions = current && settings.answerMode === 'choice' ? buildChoices(current) : null;
   render();
   if (queue[0]) new Image().src = artUrl(queue[0]);   // preload the next card
 }
 
-function grade(right) {
+// Three decoys sharing the answer's first letter, which is what makes this hard:
+// Machop, Machoke, Machamp, Magikarp rather than four unrelated names. Preference
+// runs from "in the deck you're studying, and the same kind of card" outwards,
+// because only X has fewer than four names and Paldean forms number just two.
+function buildChoices(card) {
+  const pool = filteredCards();
+  const letter = card.name[0].toUpperCase();
+  const sameLetter = (c) => c.name[0].toUpperCase() === letter;
+  const sameKind = (c) => (c.region ?? null) === (card.region ?? null);
+  const other = (c) => c.name !== card.name;
+  const tiers = [
+    pool.filter((c) => other(c) && sameLetter(c) && sameKind(c)),
+    pool.filter((c) => other(c) && sameLetter(c)),
+    DATA.cards.filter((c) => other(c) && sameLetter(c) && sameKind(c)),
+    DATA.cards.filter((c) => other(c) && sameLetter(c)),
+    DATA.cards.filter(other),
+  ];
+  const picked = [];
+  const seen = new Set([card.name]);
+  for (const tier of tiers) {
+    for (const c of shuffle(tier)) {
+      if (picked.length === 3) break;
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      picked.push(c);
+    }
+    if (picked.length === 3) break;
+  }
+  return shuffle([card, ...picked]);
+}
+
+function choose(option) {
+  if (mcPicked) return;                       // ignore double taps
+  mcPicked = option;
+  applyGrade(option.name === current.name);
+  flipped = true;
+  render();
+}
+
+function grade(right) { applyGrade(right); next(); }
+
+function applyGrade(right) {
   const rec = progress[current.id] ?? { box: 0, seen: 0, wrong: 0 };
   rec.seen++;
   if (right) {
@@ -407,7 +475,6 @@ function grade(right) {
   }
   progress[current.id] = rec;
   save();
-  next();
 }
 
 // ------------------------------------------------------------------ rendering
@@ -455,7 +522,19 @@ function renderCard() {
   card.className = 'card ' + (flipped ? 'back' : 'front');
 
   if (!flipped) {
-    card.append(makeArt(current), el('p', { className: 'hint' }, 'Who is this?'));
+    const choosing = settings.answerMode === 'choice';
+    card.append(makeArt(current), el('p', { className: 'hint' }, choosing ? 'Which one is this?' : 'Who is this?'));
+    if (choosing) {
+      card.classList.add('choosing');
+      actions.className = 'actions choices';
+      for (const [i, opt] of mcOptions.entries()) {
+        const btn = el('button', { className: 'big choice', type: 'button' },
+          [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt.name)]);
+        btn.onclick = () => choose(opt);
+        actions.append(btn);
+      }
+      return;
+    }
     const guess = el('button', { className: 'big primary', type: 'button' },
       [el('span', {}, 'Guess'), el('small', {}, 'reveal the name')]);
     guess.onclick = flip;
@@ -479,14 +558,26 @@ function renderCard() {
   card.append(makeArt(current), el('h1', { className: 'name' }, current.name), badges, say, facts);
   if (settings.showPhonetic) say.prepend(el('span', { className: 'phon' }, phoneticFor(current)));
 
-  const wrong = el('button', { className: 'big bad', type: 'button' },
-    [el('span', {}, '✗ Missed it'), el('small', {}, 'retry soon')]);
-  const right = el('button', { className: 'big good', type: 'button' },
-    [el('span', {}, '✓ Got it'), el('small', {}, 'rest for a while')]);
-  wrong.onclick = () => grade(false);
-  right.onclick = () => grade(true);
-  actions.className = 'actions two';
-  actions.append(wrong, right);
+  if (mcPicked) {
+    // The choice already graded it, so the back just reports and moves on.
+    const correct = mcPicked.name === current.name;
+    card.prepend(el('div', { className: `result ${correct ? 'ok' : 'no'}` },
+      correct ? '\u2713 Correct' : `\u2717 You picked ${mcPicked.name}`));
+    const onward = el('button', { className: 'big primary', type: 'button' },
+      [el('span', {}, 'Next'), el('small', {}, queue.length ? `${queue.length} to go` : 'last one')]);
+    onward.onclick = () => next();
+    actions.className = 'actions';
+    actions.append(onward);
+  } else {
+    const wrong = el('button', { className: 'big bad', type: 'button' },
+      [el('span', {}, '✗ Missed it'), el('small', {}, 'retry soon')]);
+    const right = el('button', { className: 'big good', type: 'button' },
+      [el('span', {}, '✓ Got it'), el('small', {}, 'rest for a while')]);
+    wrong.onclick = () => grade(false);
+    right.onclick = () => grade(true);
+    actions.className = 'actions two';
+    actions.append(wrong, right);
+  }
 
   if (settings.autoSpeak) say.querySelector('.speak')?.click();
 }
@@ -575,6 +666,9 @@ function render() {
     $('#retryPill').textContent = `${retry} to retry`;
   }
 
+  $('#kbdHint').innerHTML = settings.answerMode === 'choice'
+    ? '<kbd>1</kbd>–<kbd>4</kbd> answer · <kbd>Space</kbd> next · <kbd>P</kbd> pronounce'
+    : '<kbd>Space</kbd> flip · <kbd>←</kbd> missed · <kbd>→</kbd> got it · <kbd>P</kbd> pronounce';
   if (current) renderCard(); else renderDone();
 }
 
@@ -607,6 +701,18 @@ function renderSettings() {
     order.append(toggle('keepFamilies', 'Keep families together', 'Shuffle whole families instead of individual cards', () => startSession()));
   }
   wrap.append(order);
+
+  // Answer mode
+  const mode = el('div', { className: 'group' }, [el('h2', {}, 'How to answer')]);
+  for (const [value, label, sub] of [
+    ['flip', 'Reveal and self-grade', 'Flip the card, then mark yourself right or wrong'],
+    ['choice', 'Multiple choice', 'Pick from four names that all start with the same letter'],
+  ]) {
+    const input = el('input', { type: 'radio', name: 'answerMode', value, checked: settings.answerMode === value, id: `m-${value}` });
+    input.onchange = () => { settings.answerMode = value; save(); renderSettings(); startSession(); };
+    mode.append(el('div', { className: 'row' }, [input, el('label', { htmlFor: `m-${value}` }, [label, el('small', {}, sub)])]));
+  }
+  wrap.append(mode);
 
   // What to include
   const scope = el('div', { className: 'group' }, [el('h2', {}, 'What to include')]);
@@ -722,11 +828,20 @@ addEventListener('keydown', (e) => {
   if (key === 'escape' && view === 'settings') { view = 'study'; render(); return; }
   if (view !== 'study' || !current) return;
   if (!flipped) {
+    if (mcOptions) {
+      const n = Number(e.key);
+      if (n >= 1 && n <= mcOptions.length) { e.preventDefault(); choose(mcOptions[n - 1]); }
+      return;
+    }
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
     return;
   }
-  if (key === 'p') { e.preventDefault(); document.querySelector('.speak:not([disabled])')?.click(); }
-  else if (e.key === 'ArrowLeft' || key === 'j' || e.key === '1') { e.preventDefault(); grade(false); }
+  if (key === 'p') { e.preventDefault(); document.querySelector('.speak:not([disabled])')?.click(); return; }
+  if (mcPicked) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); next(); }
+    return;
+  }
+  if (e.key === 'ArrowLeft' || key === 'j' || e.key === '1') { e.preventDefault(); grade(false); }
   else if (e.key === 'ArrowRight' || key === 'k' || e.key === '2') { e.preventDefault(); grade(true); }
   else if (e.key === ' ') e.preventDefault();   // no accidental grading on the back
 });

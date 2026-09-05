@@ -2,10 +2,17 @@
 
 Flashcards for learning Pokémon names — and how to actually say them.
 
-You see the artwork, guess, then flip the card to check. The back shows the name,
-a phonetic respelling, and a **Pronounce** button. Mark yourself right or wrong:
-wrong cards come back a few cards later in the same session, right ones drop out
-of the pool and return days later.
+You see the artwork and name it. The answer shows the name, a phonetic
+respelling, its types and a **Pronounce** button. Wrong cards come back a few
+cards later in the same session; right ones drop out of the pool and return days
+later.
+
+Two ways to answer, switchable in settings:
+
+- **Reveal and self-grade** (default) — flip the card, then mark yourself right or wrong.
+- **Multiple choice** — pick from four names that all start with the same letter,
+  which is what makes it hard: *Machop, Machoke, Machamp, Magikarp* rather than
+  four unrelated names. Picking grades it for you.
 
 ## Running it
 
@@ -73,9 +80,22 @@ chrome. One caveat on iOS: a home-screen web app gets a **separate storage
 container** from Safari, so progress you built up in the browser won't carry over
 into the installed copy — start as you mean to continue.
 
+### Distractors
+
+The three decoys share the answer's first letter. Preference runs outward from
+"already in the deck you're studying, and the same kind of card" to progressively
+looser matches, because two buckets are thin: only `X` has fewer than four names
+(Xatu, Xerneas, Xurkitree), and there are just two Paldean forms. Regional forms
+therefore draw other regional forms — *Alolan Rattata* against *Alolan Meowth*,
+*Alolan Raichu*, *Alolan Grimer* — so you have to know the species, not just the
+prefix. Decoys can come from outside your current filters; requiring them to be
+in the deck would make a seven-card deck repeat itself.
+
 ### Keyboard
 
-`Space` flip · `←` / `J` missed · `→` / `K` got it · `P` pronounce · `Esc` close settings
+**Self-graded:** `Space` flip · `←` / `J` missed · `→` / `K` got it
+**Multiple choice:** `1`–`4` answer · `Space` next
+Both: `P` pronounce · `Esc` close settings
 
 ## Repo layout
 
