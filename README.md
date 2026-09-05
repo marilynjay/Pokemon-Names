@@ -50,29 +50,21 @@ synced or sent anywhere.
 ### Filtering
 
 Generation checkboxes, type chips, and a switch for regional forms — they stack,
-so "Gen 2 and 3, Ghost only" gives you a 13-card deck.
+so "Gen 2 and 3, Ghost only" gives you a 7-card deck.
 
-**Generations filter by _family_**, not by individual card, so a family stays
-whole, and a family is filed under its **earliest** member. That cuts both ways:
-Perrserker is a Gen 8 Pokémon but rides along with Gen 1 Meowth, and Pichu is a
-Gen 2 Pokémon but rides along with Gen 1 Pikachu — so unchecking Kanto really
-does retire the whole Pikachu line.
+Both filters match **individual Pokémon**, not whole families, because both
+properties vary within a family. Meowth is a Gen 1 Normal type; Alolan Meowth is
+a Gen 7 Dark type; Galarian Meowth is a Gen 8 Steel type; Perrserker is a Gen 8
+Steel type. So checking Gen 7 surfaces Alolan Meowth without the rest of its
+line, and unchecking Gen 1 retires Pikachu while leaving Pichu — a Johto
+Pokémon — in place.
 
-**Types filter by _card_**, because typing is a property of the individual form
-rather than the family: Meowth is Normal, its Alolan form Dark and its Galarian
-form Steel. Filtering to Steel keeps the latter two and drops the first. A card
-matches if *any* of its types is selected, and both types show on the back of
-the card as coloured badges.
+Counting this way lands on the canonical per-generation figures: 151 for Kanto,
+100 for Johto, 135 for Hoenn, 72 for Kalos.
 
-### Pronunciation
-
-The browser's built-in speech synthesis, fed a phonetic respelling rather than
-the raw spelling — `Rayquaza` is sent as `ray-KWAH-zuh`, which stops the engine
-mangling it. All 1025 species have a respelling, as do the four regional
-adjectives, so `Alolan Meowth` is spoken as `uh-LOH-lun mee-OWTH`.
-
-Voice quality varies by browser and OS; settings has a voice picker if the
-default sounds rough.
+Evolution families still stay grouped in the running order. Filtering just means
+you may meet part of a family rather than all of it. A card matches on type if
+*any* of its types is selected, and both types show on the back as coloured badges.
 
 ### On your phone
 

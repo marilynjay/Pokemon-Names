@@ -312,7 +312,7 @@ function filteredCards() {
   const gens = new Set(settings.gens);
   const types = new Set(activeTypes());
   return DATA.cards.filter((c) => {
-    if (!gens.has(GROUPS.get(c.group).gen)) return false;
+    if (!gens.has(c.gen)) return false;
     if (!settings.regionals && c.region) return false;
     // Types match per card, not per family: Steel keeps Galarian Meowth and
     // Perrserker while dropping the Normal-type Meowth they sit beside.
@@ -612,7 +612,7 @@ function renderSettings() {
   const scope = el('div', { className: 'group' }, [el('h2', {}, 'What to include')]);
   const gens = el('div', { className: 'gens' });
   for (let g = 1; g <= 9; g++) {
-    const count = DATA.groups.filter((x) => x.gen === g).reduce((n, x) => n + x.members.length, 0);
+    const count = DATA.cards.filter((c) => c.gen === g).length;
     const input = el('input', { type: 'checkbox', checked: settings.gens.includes(g) });
     input.onchange = () => {
       settings.gens = input.checked ? [...settings.gens, g].sort((a, b) => a - b) : settings.gens.filter((x) => x !== g);
@@ -625,7 +625,7 @@ function renderSettings() {
   all.onclick = () => { settings.gens = [1,2,3,4,5,6,7,8,9]; save(); renderSettings(); startSession(); };
   none.onclick = () => { settings.gens = []; save(); renderSettings(); startSession(); };
   scope.append(gens, el('p', { className: 'note' },
-    'A generation covers the whole evolution family, filed under its earliest member \u2014 so Pichu comes with Gen 1 Pikachu, and Perrserker with Gen 1 Meowth.'),
+    'Each Pok\u00e9mon sits in the generation that introduced it, so Alolan Meowth is Gen 7 and Perrserker is Gen 8 even though Meowth is Gen 1. Evolution families stay grouped in the running order either way.'),
     el('div', { className: 'minis', style: 'margin-top:10px' }, [all, none]),
     toggle('regionals', 'Regional forms',
       `Alolan, Galarian, Hisuian and Paldean variants (${DATA.cards.filter((c) => c.region).length} extra cards)`,
@@ -648,7 +648,7 @@ function renderSettings() {
   noneT.onclick = () => { settings.types = []; save(); renderSettings(); startSession(); };
   scope.append(el('h2', { style: 'margin:18px 0 10px' }, 'Types'), types,
     el('p', { className: 'note' },
-      'Types match individual Pokémon rather than whole families, so Steel keeps Galarian Meowth and Perrserker but not the Normal-type Meowth beside them.'),
+      'Like generations, types match individual Pok\u00e9mon: Steel keeps Galarian Meowth and Perrserker but not the Normal-type Meowth beside them.'),
     el('div', { className: 'minis', style: 'margin-top:10px' }, [allT, noneT]));
 
   const sizeSel = el('select');

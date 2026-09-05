@@ -68,6 +68,7 @@ const [species, pokemon, forms, formNames, speciesNames, pokemonTypes, types, ty
   loadCsv('pokemon_form_names'), loadCsv('pokemon_species_names'),
   loadCsv('pokemon_types'), loadCsv('types'), loadCsv('type_names'),
 ]);
+const versionGroups = await loadCsv('version_groups');
 
 // Types are per-form, not per-species: Meowth is Normal, its Alolan form Dark
 // and its Galarian form Steel. Ids above 10000 are the non-playable
@@ -86,11 +87,18 @@ for (const list of typesOf.values()) list.sort((a, b) => a.slot - b.slot);
 const nameOf = new Map();
 for (const r of speciesNames) if (r.local_language_id === ENGLISH) nameOf.set(+r.pokemon_species_id, r.name);
 
-// pokemon_id -> region key, for the variants we keep.
+// pokemon_id -> region key, plus the generation the form actually debuted in.
+// A regional variant belongs to the generation that introduced it, not to its
+// species' original one: Alolan Meowth is Gen 7 even though Meowth is Gen 1.
+const vgGeneration = new Map(versionGroups.map((v) => [+v.id, +v.generation_id]));
 const regionOf = new Map();
+const formGenOf = new Map();
 for (const f of forms) {
   if (f.is_battle_only === '1' || f.is_mega === '1') continue;
-  if (REGIONS[f.form_identifier]) regionOf.set(+f.pokemon_id, f.form_identifier);
+  if (!REGIONS[f.form_identifier]) continue;
+  regionOf.set(+f.pokemon_id, f.form_identifier);
+  const gen = vgGeneration.get(+f.introduced_in_version_group_id);
+  if (gen) formGenOf.set(+f.pokemon_id, gen);
 }
 
 const speciesById = new Map(species.map((s) => [+s.id, s]));
@@ -137,15 +145,14 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
     if (from === null || !ids.has(from)) walk(+s.id);
   }
 
-  // A family is identified by its lowest Pokédex number, not by whichever
-  // species happens to sit at the root of the tree. Gen 2 and 4 added babies
-  // that evolve into much older Pokémon, so keying off the root would file
-  // Pikachu under Pichu's Johto and name the Snorlax line after Munchlax.
+  // A family is named for its lowest Pokédex number, not for whichever species
+  // sits at the root of the tree: Gen 2 and 4 added babies that evolve into much
+  // older Pokémon, so keying off the root would call this the Munchlax family
+  // rather than Snorlax's.
   const headSpecies = Math.min(...ordered);
   const group = {
     id: chainId,
     name: nameOf.get(headSpecies) ?? speciesById.get(headSpecies).identifier,
-    gen: Math.min(...ordered.map((id) => +speciesById.get(id).generation_id)),
     dex: headSpecies,
     members: [],
   };
@@ -154,12 +161,13 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
     for (const p of variantsOf.get(speciesId) ?? []) {
       const region = regionOf.get(+p.id);
       const base = nameOf.get(speciesId) ?? speciesById.get(speciesId).identifier;
+      const speciesGen = +speciesById.get(speciesId).generation_id;
       cards.push({
         id: +p.id,
         name: region ? `${REGIONS[region]} ${base}` : base,
         base,
         dex: speciesId,
-        gen: +speciesById.get(speciesId).generation_id,
+        gen: (region && formGenOf.get(+p.id)) || speciesGen,
         group: chainId,
         region: region ? REGIONS[region] : null,
         types: (typesOf.get(+p.id) ?? []).map((t) => t.name),
@@ -185,7 +193,7 @@ if (verifyArt) {
 const out = {
   generatedAt: new Date().toISOString().slice(0, 10),
   spriteBase: SPRITE_BASE,
-  generations: [...new Set(groups.map((g) => g.gen))].sort((a, b) => a - b),
+  generations: [...new Set(cards.map((c) => c.gen))].sort((a, b) => a - b),
   // Only types some Pokémon actually has natively — this drops Stellar, which
   // exists as a Terastal type but is nobody's real typing, so it would show up
   // as a filter that can never match anything.

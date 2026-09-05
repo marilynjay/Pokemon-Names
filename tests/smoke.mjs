@@ -43,36 +43,60 @@ await p.keyboard.press('ArrowRight');
 log('ArrowRight graded, meter now', await p.locator('#countPill').textContent());
 
 log('--- regional form card ---');
+// All generations on, since regional forms now live in their own generation.
 await p.evaluate(() => { localStorage.clear(); });
 await p.reload({ waitUntil: 'domcontentloaded' });
 await p.waitForSelector('#actions button');
-await settings(async () => { await p.click('text=None'); await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); await p.locator('select').first().selectOption('0'); });
+await settings(async () => { await p.locator('select').first().selectOption('0'); });
 const names = [];
-for (let i = 0; i < 100; i++) { names.push(await guess()); await p.click('#actions button.good'); }
+for (let i = 0; i < 100; i++) {
+  names.push(await guess());
+  if (names.at(-1) === 'Alolan Meowth') {
+    log('regional card facts:', (await p.locator('.facts').innerText()).replace(/\n/g, ' '),
+        '| phon:', await p.locator('.phon').textContent(),
+        '| types:', (await p.locator('.type-badges').innerText()).replace(/\n/g, '+'));
+    await p.click('.speak');
+    log('regional spoken:', JSON.stringify((await p.evaluate(() => window.__spoken)).at(-1)));
+  }
+  await p.click('#actions button.good');
+}
 const mi = names.indexOf('Meowth');
 log('family run:', names.slice(mi, mi + 6).join(' > '));
-await p.evaluate(() => { localStorage.clear(); });
-await p.reload({ waitUntil: 'domcontentloaded' });
-await p.waitForSelector('#actions button');
-await settings(async () => { await p.click('text=None'); await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); await p.locator('select').first().selectOption('0'); });
-for (let i = 0; i < 78; i++) { const n = await guess(); if (n === 'Alolan Meowth') { log('regional card facts:', (await p.locator('.facts').innerText()).replace(/\n/g, ' '), '| phon:', await p.locator('.phon').textContent()); await p.click('.speak'); log('regional spoken:', JSON.stringify((await p.evaluate(() => window.__spoken)).at(-1))); } await p.click('#actions button.good'); }
 
-log('--- generation filter drops whole families ---');
-// Regression: family generation used to come from the evolution root, so the
-// Gen 2 babies (Pichu, Cleffa, Elekid...) filed their Kanto lines under Johto
-// and unchecking Gen 1 still served up Pikachu.
+log('--- generation filter ---');
+// Each card sits in the generation that introduced it. Unchecking Gen 1 must
+// drop Pikachu (Gen 1) while keeping Pichu (Gen 2), and Gen 7 alone must
+// surface the Alolan forms even though their species are much older.
 await p.evaluate(() => { localStorage.clear(); });
 await p.reload({ waitUntil: 'domcontentloaded' });
 await p.waitForSelector('#actions button');
-await settings(async () => { await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').uncheck(); });
-const withoutKanto = [];
-for (let i = 0; i < 12; i++) { withoutKanto.push(await guess()); await p.click('#actions button.good'); }
-const kanto = ['Pichu', 'Pikachu', 'Raichu', 'Cleffa', 'Clefairy', 'Igglybuff', 'Jigglypuff', 'Tyrogue',
-  'Happiny', 'Chansey', 'Mime Jr.', 'Smoochum', 'Elekid', 'Magby', 'Munchlax', 'Snorlax', 'Bulbasaur'];
-const leaked = kanto.filter((n) => withoutKanto.includes(n));
-log('Gen 1 off, first 12 cards:', withoutKanto.slice(0, 4).join(', '), '...');
-log(leaked.length ? `LEAKED KANTO: ${leaked.join(', ')}` : 'no Kanto families leaked \u2713');
-await settings(async () => { await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); });
+await settings(async () => {
+  await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').uncheck();
+  await p.locator('select').first().selectOption('0');
+});
+const noKanto = [];
+for (let i = 0; i < 40; i++) { noKanto.push(await guess()); await p.click('#actions button.good'); }
+const gen1 = ['Bulbasaur', 'Pikachu', 'Raichu', 'Clefairy', 'Jigglypuff', 'Meowth', 'Persian', 'Snorlax', 'Chansey'];
+const leaked = gen1.filter((n) => noKanto.includes(n));
+log('Gen 1 off, first 4:', noKanto.slice(0, 4).join(', '));
+log(leaked.length ? `LEAKED GEN 1: ${leaked.join(', ')}` : 'no Gen 1 Pok\u00e9mon leaked \u2713');
+log('Pichu (a Gen 2 baby) still present:', noKanto.includes('Pichu') ? 'yes \u2713' : 'NO');
+
+await p.evaluate(() => { localStorage.clear(); });
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForSelector('#actions button');
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  await p.locator('.gens label', { hasText: 'Gen 7' }).locator('input').check();
+  await p.locator('select').first().selectOption('0');
+});
+const gen7Total = +(await p.locator('#countPill').textContent()).split('/')[1].trim();
+const gen7 = [];
+for (let i = 0; i < gen7Total; i++) { gen7.push(await guess()); await p.click('#actions button.good'); }
+const alolan = gen7.filter((n) => n.startsWith('Alolan'));
+log(`Gen 7 alone = ${gen7Total} cards, ${alolan.length} of them Alolan`);
+log('includes Alolan Meowth:', gen7.includes('Alolan Meowth') ? 'yes \u2713' : 'NO');
+log('excludes plain Meowth:', gen7.includes('Meowth') ? 'NO' : 'yes \u2713');
 
 log('--- type filter ---');
 await p.evaluate(() => { localStorage.clear(); });
