@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Pokémon Name Trainer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23ef4444'/><path d='M4 50h92a46 46 0 0 1-92 0z' fill='%23f8fafc'/><circle cx='50' cy='50' r='14' fill='%23f8fafc' stroke='%230f172a' stroke-width='6'/><circle cx='50' cy='50' r='46' fill='none' stroke='%230f172a' stroke-width='6'/><path d='M4 50h92' stroke='%230f172a' stroke-width='6'/></svg>">
+<style>
+  :root {
+    --bg: #f1f5f9; --panel: #ffffff; --panel-2: #f8fafc;
+    --ink: #0f172a; --ink-2: #475569; --ink-3: #94a3b8;
+    --line: #e2e8f0; --accent: #4f46e5; --accent-ink: #ffffff;
+    --good: #059669; --good-bg: #ecfdf5; --bad: #dc2626; --bad-bg: #fef2f2;
+    --shadow: 0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.08);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120; --panel: #151d2e; --panel-2: #1b2436;
+      --ink: #e8edf7; --ink-2: #a3b0c7; --ink-3: #6b7a94;
+      --line: #26314a; --accent: #7c83ff; --accent-ink: #0b1120;
+      --good: #34d399; --good-bg: #08301f; --bad: #f87171; --bad-bg: #3a1116;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  /* Beats the display:flex rules below, which would otherwise win over [hidden]. */
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .app {
+    min-height: 100%; max-width: 560px; margin: 0 auto;
+    display: flex; flex-direction: column;
+    padding: max(12px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  /* ---- header ---- */
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .brand { font-weight: 700; font-size: 15px; letter-spacing: -.01em; margin-right: auto; }
+  .brand span { color: var(--ink-3); font-weight: 500; }
+  .icon-btn {
+    appearance: none; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); width: 38px; height: 38px; border-radius: 11px; cursor: pointer;
+    display: grid; place-items: center; font-size: 17px; flex: none;
+  }
+  .icon-btn:hover { border-color: var(--ink-3); }
+  .icon-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .meter { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12.5px; color: var(--ink-2); }
+  .bar { flex: 1; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .25s ease; }
+  .pill { padding: 2px 8px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); white-space: nowrap; }
+  .pill.retry { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
+
+  /* ---- card ---- */
+  main { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px; flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; min-height: 320px;
+  }
+  /* The slot holds the layout so a slow or failed image never shifts the card,
+     and a muted Poké Ball shows through until the artwork paints. */
+  .art-slot { position: relative; width: 100%; max-width: 280px; aspect-ratio: 1; display: grid; place-items: center; }
+  .card.back .art-slot { max-width: 200px; margin-bottom: 2px; }
+  .art-slot svg { width: 42%; color: var(--ink-3); opacity: .22; }
+  .art-slot.loading svg { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: .12; } 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .art-slot.loading svg { animation: none; } }
+  .art {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .art.ready { opacity: 1; }
+  .name { font-size: clamp(26px, 8vw, 38px); font-weight: 750; letter-spacing: -.025em; line-height: 1.15; margin: 6px 0 2px; }
+  .say { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .phon { color: var(--ink-2); font-size: 15px; font-style: italic; }
+  .speak {
+    appearance: none; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+    border-radius: 99px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .speak:hover { border-color: var(--accent); color: var(--accent); }
+  .speak.speaking { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .speak[disabled] { opacity: .5; cursor: not-allowed; }
+  .facts { margin-top: 12px; color: var(--ink-3); font-size: 12.5px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .facts b { font-weight: 600; color: var(--ink-2); }
+  .hint { color: var(--ink-3); font-size: 13px; margin-top: 14px; }
+
+  /* ---- actions ---- */
+  .actions { display: grid; gap: 10px; }
+  .actions.two { grid-template-columns: 1fr 1fr; }
+  button.big {
+    appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 13px; padding: 15px 12px; font-size: 16px; font-weight: 650; cursor: pointer;
+    font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  button.big small { font-weight: 500; font-size: 11px; color: var(--ink-3); }
+  button.big:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.primary small { color: color-mix(in srgb, var(--accent-ink) 70%, transparent); }
+  button.good { color: var(--good); background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
+  button.good small { color: color-mix(in srgb, var(--good) 70%, transparent); }
+  button.bad { color: var(--bad); background: var(--bad-bg); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  button.bad small { color: color-mix(in srgb, var(--bad) 70%, transparent); }
+
+  /* ---- settings ---- */
+  .sheet { display: none; }
+  .sheet.open { display: block; }
+  .group { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .group > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); margin: 0 0 10px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 7px 0; flex-wrap: wrap; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row label { flex: 1; cursor: pointer; font-size: 14.5px; }
+  .row label small { display: block; color: var(--ink-3); font-size: 12px; font-weight: 400; }
+  input[type=radio], input[type=checkbox] { width: 19px; height: 19px; accent-color: var(--accent); flex: none; cursor: pointer; }
+  select { font: inherit; font-size: 14px; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); max-width: 62%; }
+  .gens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .gens label {
+    display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; font-size: 13.5px;
+    min-width: 0; flex-wrap: wrap;   /* the region name drops to its own line when narrow */
+  }
+  .gens label:has(:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--panel-2)); }
+  .gens input { width: 16px; height: 16px; }
+  .mini {
+    appearance: none; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer;
+  }
+  .mini:hover { border-color: var(--ink-3); }
+  .mini.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: var(--bad-bg); }
+  .minis { display: flex; gap: 8px; flex-wrap: wrap; }
+  .note { color: var(--ink-3); font-size: 12.5px; margin: 10px 0 0; }
+
+  /* ---- summary / empty ---- */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin: 14px 0 4px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 8px; }
+  .stat b { display: block; font-size: 22px; font-weight: 700; }
+  .stat span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+  .big-emoji { font-size: 44px; line-height: 1; }
+  footer { text-align: center; color: var(--ink-3); font-size: 11.5px; margin-top: 14px; }
+  kbd { font: inherit; font-size: 11px; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; }
+  @media (hover: none) { .kbd-hint { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">Pokémon Name Trainer <span id="scopeLabel"></span></div>
+    <button class="icon-btn" id="settingsBtn" aria-pressed="false" aria-label="Settings" title="Settings">⚙</button>
+  </header>
+
+  <div class="meter" id="meter" hidden>
+    <span class="pill" id="countPill">0 / 0</span>
+    <span class="bar"><i id="barFill" style="width:0%"></i></span>
+    <span class="pill retry" id="retryPill" hidden>0 to retry</span>
+  </div>
+
+  <main id="study">
+    <div class="card" id="card"><p class="hint">Loading the Pokédex…</p></div>
+    <div class="actions" id="actions"></div>
+  </main>
+
+  <section class="sheet" id="settings" aria-label="Settings"></section>
+
+  <footer>
+    <span class="kbd-hint"><kbd>Space</kbd> flip · <kbd>←</kbd> missed · <kbd>→</kbd> got it · <kbd>P</kbd> pronounce</span>
+  </footer>
+</div>
+
+<script type="module">
+const STORE_KEY = 'pokemon-name-trainer/v1';
+
+// Leitner-style intervals. Getting a card right moves it up a box and out of the
+// pool until it comes due again; getting it wrong drops it back to the start.
+const INTERVALS = [0, 4 * 3600e3, 24 * 3600e3, 3 * 864e5, 7 * 864e5, 21 * 864e5, 60 * 864e5];
+const RETRY_GAP = 6;      // how many other cards to show before a missed card returns
+const GEN_NAMES = ['', 'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Paldea'];
+
+const DEFAULTS = {
+  order: 'family',
+  keepFamilies: true,
+  regionals: true,
+  gens: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  sessionSize: 40,
+  showPhonetic: true,
+  autoSpeak: false,
+  voiceURI: '',
+};
+
+const $ = (sel) => document.querySelector(sel);
+const el = (tag, props = {}, kids = []) => {
+  const n = Object.assign(document.createElement(tag), props);
+  for (const k of [].concat(kids)) n.append(k);
+  return n;
+};
+
+// ---------------------------------------------------------------- persistence
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}');
+    return {
+      settings: { ...DEFAULTS, ...(saved.settings ?? {}) },
+      progress: saved.progress ?? {},
+    };
+  } catch {
+    return { settings: { ...DEFAULTS }, progress: {} };
+  }
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ settings, progress })); } catch {}
+}
+
+let { settings, progress } = load();
+let DATA = null, CARDS = new Map(), GROUPS = new Map(), PHON = {};
+
+// ---------------------------------------------------------------------- speech
+const speech = {
+  voices: [], voice: null, busy: false,
+  refresh() {
+    if (!('speechSynthesis' in window)) return;
+    this.voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith('en'));
+    this.voice = this.voices.find((v) => v.voiceURI === settings.voiceURI)
+      ?? this.voices.find((v) => v.localService && /en[-_]US/i.test(v.lang))
+      ?? this.voices.find((v) => v.localService)
+      ?? this.voices[0] ?? null;
+  },
+  say(text, onState) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; }
+    u.rate = 0.86; u.pitch = 1;
+    u.onstart = () => onState?.(true);
+    u.onend = u.onerror = () => onState?.(false);
+    speechSynthesis.speak(u);
+  },
+};
+if ('speechSynthesis' in window) {
+  speech.refresh();
+  speechSynthesis.addEventListener('voiceschanged', () => { speech.refresh(); if (view === 'settings') renderSettings(); });
+}
+
+// A regional form is spoken as "<region adjective> <species>", both respelled.
+function phoneticFor(card) {
+  const base = PHON[card.base] ?? card.base;
+  return card.region ? `${PHON[card.region] ?? card.region} ${base}` : base;
+}
+
+// ------------------------------------------------------------------- the deck
+function filteredCards() {
+  const gens = new Set(settings.gens);
+  return DATA.cards.filter((c) => {
+    if (!gens.has(GROUPS.get(c.group).gen)) return false;
+    if (!settings.regionals && c.region) return false;
+    return true;
+  });
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function orderedCards() {
+  const pool = filteredCards();
+  if (settings.order === 'dex') {
+    return pool.slice().sort((a, b) => a.dex - b.dex || a.id - b.id);
+  }
+  if (settings.order === 'shuffle') {
+    if (!settings.keepFamilies) return shuffle(pool);
+    const byGroup = new Map();
+    for (const c of pool) {
+      if (!byGroup.has(c.group)) byGroup.set(c.group, []);
+      byGroup.get(c.group).push(c);
+    }
+    return shuffle([...byGroup.values()]).flat();
+  }
+  return pool; // 'family' — already grouped and in evolution order
+}
+
+const isDue = (card, now = Date.now()) => !progress[card.id] || progress[card.id].due <= now;
+
+// --------------------------------------------------------------- session state
+let view = 'study';           // 'study' | 'settings'
+let queue = [];               // cards still to show this session
+let current = null;
+let flipped = false;
+let sessionTotal = 0, gotRight = 0, gotWrong = 0;
+let ignoreSchedule = false;   // set by "Study anyway" when nothing is due
+
+function startSession({ all = false, onlyMissed = null } = {}) {
+  ignoreSchedule = all;
+  if (onlyMissed) {
+    queue = onlyMissed.slice();
+  } else {
+    const now = Date.now();
+    const eligible = orderedCards().filter((c) => all || isDue(c, now));
+    const limit = settings.sessionSize;
+    if (limit && eligible.length > limit) {
+      // Round up past the limit so an evolution family isn't split mid-session.
+      let end = limit;
+      while (end < eligible.length && eligible[end].group === eligible[end - 1].group) end++;
+      queue = eligible.slice(0, end);
+    } else {
+      queue = eligible;
+    }
+  }
+  sessionTotal = queue.length;
+  gotRight = 0; gotWrong = 0;
+  missedThisSession = new Map();
+  next();
+}
+
+let missedThisSession = new Map();
+
+function next() {
+  current = queue.shift() ?? null;
+  flipped = false;
+  render();
+  if (queue[0]) new Image().src = artUrl(queue[0]);   // preload the next card
+}
+
+function grade(right) {
+  const rec = progress[current.id] ?? { box: 0, seen: 0, wrong: 0 };
+  rec.seen++;
+  if (right) {
+    gotRight++;
+    rec.box = Math.min(rec.box + 1, INTERVALS.length - 1);
+    rec.due = Date.now() + INTERVALS[rec.box];
+  } else {
+    gotWrong++;
+    rec.wrong++;
+    rec.box = 0;
+    rec.due = 0;
+    missedThisSession.set(current.id, current);
+    // Back into the pool a handful of cards from now, so it comes round again.
+    queue.splice(Math.min(RETRY_GAP, queue.length), 0, current);
+  }
+  progress[current.id] = rec;
+  save();
+  next();
+}
+
+// ------------------------------------------------------------------ rendering
+const artUrl = (card) => `${DATA.spriteBase}/other/official-artwork/${card.id}.png`;
+
+const BALL_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="7">'
+  + '<circle cx="50" cy="50" r="44"/><path d="M6 50h88"/><circle cx="50" cy="50" r="13" fill="var(--panel)"/></svg>';
+
+function makeArt(card) {
+  const slot = el('div', { className: 'art-slot loading' });
+  slot.innerHTML = BALL_SVG;
+  const img = el('img', { className: 'art', src: artUrl(card), alt: '', decoding: 'async', fetchPriority: 'high' });
+  img.onload = () => { slot.classList.remove('loading'); img.classList.add('ready'); };
+  // Official artwork is missing for a handful of forms; fall back to the pixel
+  // sprite, and if that fails too the Poké Ball placeholder just stays put.
+  img.onerror = () => {
+    img.onerror = () => slot.classList.remove('loading');
+    img.src = `${DATA.spriteBase}/${card.id}.png`;
+  };
+  slot.append(img);
+  return slot;
+}
+
+function speakButton(card) {
+  const supported = 'speechSynthesis' in window;
+  const btn = el('button', {
+    className: 'speak', type: 'button', disabled: !supported,
+    title: supported ? 'Hear the name (P)' : 'This browser has no speech support',
+  }, [supported ? '🔊 Pronounce' : '🔇 No speech support']);
+  btn.onclick = () => speech.say(phoneticFor(card), (on) => btn.classList.toggle('speaking', on));
+  return btn;
+}
+
+function renderCard() {
+  const card = $('#card');
+  const actions = $('#actions');
+  card.textContent = ''; actions.textContent = '';
+  card.className = 'card ' + (flipped ? 'back' : 'front');
+
+  if (!flipped) {
+    card.append(makeArt(current), el('p', { className: 'hint' }, 'Who is this?'));
+    const guess = el('button', { className: 'big primary', type: 'button' },
+      [el('span', {}, 'Guess'), el('small', {}, 'reveal the name')]);
+    guess.onclick = flip;
+    actions.className = 'actions';
+    actions.append(guess);
+    return;
+  }
+
+  const group = GROUPS.get(current.group);
+  const pos = group.members.indexOf(current.id) + 1;
+  const facts = el('div', { className: 'facts' }, [
+    el('span', {}, [el('b', {}, `#${String(current.dex).padStart(4, '0')}`)]),
+    el('span', {}, '·'),
+    el('span', {}, `Gen ${current.gen} ${GEN_NAMES[current.gen]}`),
+    el('span', {}, '·'),
+    el('span', {}, group.members.length > 1 ? `${group.name} family, ${pos} of ${group.members.length}` : 'no evolutions'),
+  ]);
+
+  const say = el('div', { className: 'say' }, [speakButton(current)]);
+  card.append(makeArt(current), el('h1', { className: 'name' }, current.name), say, facts);
+  if (settings.showPhonetic) say.prepend(el('span', { className: 'phon' }, phoneticFor(current)));
+
+  const wrong = el('button', { className: 'big bad', type: 'button' },
+    [el('span', {}, '✗ Missed it'), el('small', {}, 'retry soon')]);
+  const right = el('button', { className: 'big good', type: 'button' },
+    [el('span', {}, '✓ Got it'), el('small', {}, 'rest for a while')]);
+  wrong.onclick = () => grade(false);
+  right.onclick = () => grade(true);
+  actions.className = 'actions two';
+  actions.append(wrong, right);
+
+  if (settings.autoSpeak) say.querySelector('.speak')?.click();
+}
+
+function flip() {
+  if (!current || flipped) return;
+  flipped = true;
+  renderCard();
+}
+
+function renderDone() {
+  const card = $('#card');
+  const actions = $('#actions');
+  card.textContent = ''; actions.textContent = ''; card.className = 'card';
+
+  const missed = [...missedThisSession.values()];
+  const total = gotRight + gotWrong;
+  const pct = total ? Math.round((gotRight / total) * 100) : 0;
+
+  card.append(
+    el('div', { className: 'big-emoji' }, sessionTotal === 0 ? '🌙' : pct >= 80 ? '🏆' : '💪'),
+    el('h1', { className: 'name', style: 'font-size:26px;margin-top:10px' },
+      sessionTotal === 0 ? 'Nothing due right now' : 'Session complete'),
+  );
+
+  if (sessionTotal === 0) {
+    const now = Date.now();
+    const pool = filteredCards();
+    const nextDue = pool.map((c) => progress[c.id]?.due ?? 0).filter((d) => d > now).sort((a, b) => a - b)[0];
+    card.append(el('p', { className: 'hint' }, pool.length === 0
+      ? 'No Pokémon match your current filters — turn some generations back on in settings.'
+      : nextDue ? `You're on top of all ${pool.length}. The next one is due ${relative(nextDue - now)}.`
+        : 'Adjust your filters or study anyway.'));
+  } else {
+    card.append(el('div', { className: 'stat-grid' }, [
+      el('div', { className: 'stat' }, [el('b', { style: 'color:var(--good)' }, String(gotRight)), el('span', {}, 'right')]),
+      el('div', { className: 'stat' }, [el('b', { style: 'color:var(--bad)' }, String(gotWrong)), el('span', {}, 'missed')]),
+      el('div', { className: 'stat' }, [el('b', {}, `${pct}%`), el('span', {}, 'first try')]),
+    ]));
+    if (missed.length) {
+      card.append(el('p', { className: 'hint' },
+        `Tripped you up: ${missed.slice(0, 6).map((c) => c.name).join(', ')}${missed.length > 6 ? `, +${missed.length - 6} more` : ''}`));
+    }
+  }
+
+  actions.className = 'actions';
+  const again = el('button', { className: 'big primary', type: 'button' },
+    [el('span', {}, sessionTotal === 0 ? 'Study anyway' : 'Next session'), el('small', {}, sessionTotal === 0 ? 'ignore the schedule' : 'whatever is due now')]);
+  again.onclick = () => startSession({ all: sessionTotal === 0 });
+  actions.append(again);
+  if (missed.length) {
+    const drill = el('button', { className: 'big', type: 'button' },
+      [el('span', {}, `Drill the ${missed.length} I missed`), el('small', {}, 'straight back through them')]);
+    drill.onclick = () => startSession({ onlyMissed: missed });
+    actions.append(drill);
+  }
+}
+
+function relative(ms) {
+  const h = ms / 3600e3;
+  if (h < 1) return `in ${Math.max(1, Math.round(ms / 60e3))} min`;
+  if (h < 24) return `in ${Math.round(h)} h`;
+  return `in ${Math.round(h / 24)} day${Math.round(h / 24) === 1 ? '' : 's'}`;
+}
+
+function render() {
+  $('#settings').classList.toggle('open', view === 'settings');
+  $('#study').hidden = view === 'settings';
+  $('#settingsBtn').setAttribute('aria-pressed', String(view === 'settings'));
+
+  const pool = filteredCards();
+  const known = pool.filter((c) => (progress[c.id]?.box ?? 0) > 0).length;
+  $('#scopeLabel').textContent = `· ${known}/${pool.length} learned`;
+
+  if (view === 'settings') { $('#meter').hidden = true; return; }
+
+  const showMeter = !!current;
+  $('#meter').hidden = !showMeter;
+  if (showMeter) {
+    // A card only leaves the session once it is answered right, so counting
+    // those keeps the bar moving forwards even when misses get re-queued.
+    $('#countPill').textContent = `${gotRight} / ${sessionTotal}`;
+    $('#barFill').style.width = `${(gotRight / Math.max(1, sessionTotal)) * 100}%`;
+    const retry = missedThisSession.size ? queue.filter((c) => missedThisSession.has(c.id)).length : 0;
+    $('#retryPill').hidden = retry === 0;
+    $('#retryPill').textContent = `${retry} to retry`;
+  }
+
+  if (current) renderCard(); else renderDone();
+}
+
+// ------------------------------------------------------------------- settings
+function renderSettings() {
+  const wrap = $('#settings');
+  wrap.textContent = '';
+
+  const radio = (value, label, sub) => {
+    const input = el('input', { type: 'radio', name: 'order', value, checked: settings.order === value, id: `o-${value}` });
+    input.onchange = () => { settings.order = value; save(); renderSettings(); startSession(); };
+    return el('div', { className: 'row' }, [input,
+      el('label', { htmlFor: `o-${value}` }, [label, el('small', {}, sub)])]);
+  };
+  const toggle = (key, label, sub, onChange) => {
+    const id = `t-${key}`;
+    const input = el('input', { type: 'checkbox', checked: settings[key], id });
+    input.onchange = () => { settings[key] = input.checked; save(); onChange?.(); };
+    return el('div', { className: 'row' }, [input, el('label', { htmlFor: id }, [label, el('small', {}, sub)])]);
+  };
+
+  // Order
+  const order = el('div', { className: 'group' }, [el('h2', {}, 'Card order')]);
+  order.append(
+    radio('family', 'Evolution families', 'Meowth → Galarian Meowth → Persian → Perrserker, families in Pokédex order'),
+    radio('dex', 'Pokédex number', 'Strict #0001 upward; regional forms follow their base number'),
+    radio('shuffle', 'Shuffled', 'Random order, reshuffled every session'),
+  );
+  if (settings.order === 'shuffle') {
+    order.append(toggle('keepFamilies', 'Keep families together', 'Shuffle whole families instead of individual cards', () => startSession()));
+  }
+  wrap.append(order);
+
+  // What to include
+  const scope = el('div', { className: 'group' }, [el('h2', {}, 'What to include')]);
+  const gens = el('div', { className: 'gens' });
+  for (let g = 1; g <= 9; g++) {
+    const count = DATA.groups.filter((x) => x.gen === g).reduce((n, x) => n + x.members.length, 0);
+    const input = el('input', { type: 'checkbox', checked: settings.gens.includes(g) });
+    input.onchange = () => {
+      settings.gens = input.checked ? [...settings.gens, g].sort((a, b) => a - b) : settings.gens.filter((x) => x !== g);
+      save(); renderSettings(); startSession();
+    };
+    gens.append(el('label', { title: `${count} cards` }, [input, `Gen ${g}`, el('small', { style: 'color:var(--ink-3)' }, ` ${GEN_NAMES[g]}`)]));
+  }
+  const all = el('button', { className: 'mini', type: 'button' }, 'All');
+  const none = el('button', { className: 'mini', type: 'button' }, 'None');
+  all.onclick = () => { settings.gens = [1,2,3,4,5,6,7,8,9]; save(); renderSettings(); startSession(); };
+  none.onclick = () => { settings.gens = []; save(); renderSettings(); startSession(); };
+  scope.append(gens, el('p', { className: 'note' },
+    'A generation covers the whole evolution family, so Perrserker rides along with Gen 1 Meowth.'),
+    el('div', { className: 'minis', style: 'margin-top:10px' }, [all, none]),
+    toggle('regionals', 'Regional forms',
+      `Alolan, Galarian, Hisuian and Paldean variants (${DATA.cards.filter((c) => c.region).length} extra cards)`,
+      () => { renderSettings(); startSession(); }));
+
+  const sizeSel = el('select');
+  for (const [v, label] of [[20, '20 cards'], [40, '40 cards'], [80, '80 cards'], [0, 'No limit']]) {
+    sizeSel.append(el('option', { value: String(v), selected: settings.sessionSize === v }, label));
+  }
+  sizeSel.onchange = () => { settings.sessionSize = +sizeSel.value; save(); startSession(); };
+  scope.append(el('div', { className: 'row' }, [
+    el('label', {}, ['Session length', el('small', {}, 'Rounded up so a family finishes together')]), sizeSel]));
+  wrap.append(scope);
+
+  // Pronunciation
+  const audio = el('div', { className: 'group' }, [el('h2', {}, 'Pronunciation')]);
+  audio.append(
+    toggle('showPhonetic', 'Show the phonetic spelling', 'e.g. Rayquaza — ray-KWAH-zuh'),
+    toggle('autoSpeak', 'Speak the name automatically', 'Plays as soon as you flip the card'),
+  );
+  if ('speechSynthesis' in window) {
+    const voiceSel = el('select');
+    voiceSel.append(el('option', { value: '' }, 'Automatic'));
+    for (const v of speech.voices) {
+      voiceSel.append(el('option', { value: v.voiceURI, selected: settings.voiceURI === v.voiceURI }, `${v.name} (${v.lang})`));
+    }
+    voiceSel.onchange = () => {
+      settings.voiceURI = voiceSel.value; save(); speech.refresh();
+      speech.say(phoneticFor(current ?? CARDS.get(384) ?? DATA.cards[0]));
+    };
+    audio.append(el('div', { className: 'row' }, [
+      el('label', {}, ['Voice', el('small', {}, speech.voices.length ? 'Picking one plays a sample' : 'No English voices found in this browser')]),
+      voiceSel]));
+  } else {
+    audio.append(el('p', { className: 'note' }, 'This browser does not support speech synthesis, so the pronounce button is disabled.'));
+  }
+  wrap.append(audio);
+
+  // Progress
+  const pool = filteredCards();
+  const learned = pool.filter((c) => (progress[c.id]?.box ?? 0) > 0);
+  const mature = pool.filter((c) => (progress[c.id]?.box ?? 0) >= 4);
+  const prog = el('div', { className: 'group' }, [el('h2', {}, 'Progress')]);
+  prog.append(el('div', { className: 'stat-grid', style: 'margin-top:0' }, [
+    el('div', { className: 'stat' }, [el('b', {}, String(learned.length)), el('span', {}, 'started')]),
+    el('div', { className: 'stat' }, [el('b', {}, String(mature.length)), el('span', {}, 'solid')]),
+    el('div', { className: 'stat' }, [el('b', {}, String(pool.filter((c) => isDue(c)).length)), el('span', {}, 'due now')]),
+  ]));
+  const reset = el('button', { className: 'mini danger', type: 'button' }, 'Reset all progress');
+  reset.onclick = () => {
+    if (!confirm(`Forget everything you've learned across all ${Object.keys(progress).length} Pokémon? This cannot be undone.`)) return;
+    progress = {}; save(); renderSettings(); startSession();
+  };
+  prog.append(el('div', { className: 'minis', style: 'margin-top:12px' }, [reset]),
+    el('p', { className: 'note' }, 'Progress lives in this browser only — it is not synced anywhere.'));
+  wrap.append(prog);
+
+  const close = el('button', { className: 'big primary', type: 'button' }, 'Back to studying');
+  close.onclick = () => { view = 'study'; render(); };
+  wrap.append(close);
+}
+
+$('#settingsBtn').onclick = () => {
+  view = view === 'settings' ? 'study' : 'settings';
+  if (view === 'settings') renderSettings();
+  render();
+};
+
+// ------------------------------------------------------------------- keyboard
+addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.matches('input, select, textarea')) return;
+  const key = e.key.toLowerCase();
+  if (key === 'escape' && view === 'settings') { view = 'study'; render(); return; }
+  if (view !== 'study' || !current) return;
+  if (!flipped) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+    return;
+  }
+  if (key === 'p') { e.preventDefault(); document.querySelector('.speak:not([disabled])')?.click(); }
+  else if (e.key === 'ArrowLeft' || key === 'j' || e.key === '1') { e.preventDefault(); grade(false); }
+  else if (e.key === 'ArrowRight' || key === 'k' || e.key === '2') { e.preventDefault(); grade(true); }
+  else if (e.key === ' ') e.preventDefault();   // no accidental grading on the back
+});
+
+// ----------------------------------------------------------------------- boot
+try {
+  const [pokemon, pron] = await Promise.all([
+    fetch('data/pokemon.json').then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+    fetch('data/pronunciations.json').then((r) => r.ok ? r.json() : {}),
+  ]);
+  DATA = pokemon; PHON = pron;
+  for (const c of DATA.cards) CARDS.set(c.id, c);
+  for (const g of DATA.groups) GROUPS.set(g.id, g);
+  startSession();
+} catch (err) {
+  $('#card').textContent = '';
+  $('#card').append(
+    el('div', { className: 'big-emoji' }, '📕'),
+    el('h1', { className: 'name', style: 'font-size:22px' }, "Couldn't load the Pokédex"),
+    el('p', { className: 'hint' }, `${err.message}. Browsers block local file reads, so serve the folder over HTTP — for example “python3 -m http.server” in this directory, then open http://localhost:8000.`),
+  );
+}
+</script>
+</body>
+</html>
