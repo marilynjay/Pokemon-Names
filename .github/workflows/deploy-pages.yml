@@ -10,27 +10,32 @@ permissions:
   pages: write
   id-token: write
 
-# Let a running deploy finish rather than cancelling it mid-publish.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # Kept free of an `environment:` so it isn't gated on Pages already existing —
+  # this is the job that turns Pages on and creates the github-pages environment.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Configure Pages
+      - name: Enable and configure Pages
         uses: actions/configure-pages@v5
         with:
-          # Turns Pages on if it isn't already, so no manual settings change.
           enablement: true
       # The app is static: the repo root is the site, no build step.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
