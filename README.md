@@ -49,11 +49,20 @@ synced or sent anywhere.
 
 ### Filtering
 
-Generation checkboxes plus a switch for regional forms. Generations filter by
-*family*, not by individual card, so a family stays whole, and a family is filed
-under its **earliest** member. That cuts both ways: Perrserker is a Gen 8 Pokémon
-but rides along with Gen 1 Meowth, and Pichu is a Gen 2 Pokémon but rides along
-with Gen 1 Pikachu — so unchecking Kanto really does retire the whole Pikachu line.
+Generation checkboxes, type chips, and a switch for regional forms — they stack,
+so "Gen 2 and 3, Ghost only" gives you a 13-card deck.
+
+**Generations filter by _family_**, not by individual card, so a family stays
+whole, and a family is filed under its **earliest** member. That cuts both ways:
+Perrserker is a Gen 8 Pokémon but rides along with Gen 1 Meowth, and Pichu is a
+Gen 2 Pokémon but rides along with Gen 1 Pikachu — so unchecking Kanto really
+does retire the whole Pikachu line.
+
+**Types filter by _card_**, because typing is a property of the individual form
+rather than the family: Meowth is Normal, its Alolan form Dark and its Galarian
+form Steel. Filtering to Steel keeps the latter two and drops the first. A card
+matches if *any* of its types is selected, and both types show on the back of
+the card as coloured badges.
 
 ### Pronunciation
 
@@ -64,6 +73,13 @@ adjectives, so `Alolan Meowth` is spoken as `uh-LOH-lun mee-OWTH`.
 
 Voice quality varies by browser and OS; settings has a voice picker if the
 default sounds rough.
+
+### On your phone
+
+Add it to the home screen and it opens full-screen with its own icon, no browser
+chrome. One caveat on iOS: a home-screen web app gets a **separate storage
+container** from Safari, so progress you built up in the browser won't carry over
+into the installed copy — start as you mean to continue.
 
 ### Keyboard
 
@@ -78,6 +94,9 @@ default sounds rough.
 | `data/pronunciations.json` | Phonetic respellings |
 | `tools/build-data.mjs` | Regenerates `data/pokemon.json` |
 | `tools/pronunciations.mjs` | Source for the respellings |
+| `assets/icon.svg` | Home-screen icon, drawn by hand |
+| `tools/make-icons.mjs` | Rasterises that SVG to the PNGs iOS and Android need |
+| `manifest.webmanifest` | Web-app metadata for installing to a home screen |
 | `tests/smoke.mjs` | Playwright walk-through of the study flow |
 
 ## Regenerating the data
@@ -105,6 +124,13 @@ npm test
 
 Drives a real browser through flipping, grading, the retry bucket, the settings
 filters, the family ordering, pronunciation output and reset.
+
+## The icon
+
+`assets/icon.svg` is an original drawing — a Pikachu-inspired face, not Nintendo
+artwork, so nothing copyrighted is committed here. iOS won't accept SVG for
+`apple-touch-icon`, so `npm run build-icons` rasterises it to 180/192/512px PNGs
+via headless Chromium. Re-run it after editing the SVG.
 
 ## Credits
 

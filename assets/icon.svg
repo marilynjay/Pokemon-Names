@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Pokémon Name Trainer</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b3a7d"/>
+      <stop offset="1" stop-color="#191a3c"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe066"/>
+      <stop offset="1" stop-color="#f5b301"/>
+    </linearGradient>
+    <clipPath id="earL"><path d="M196 214 C168 150 128 92 96 52 C84 37 62 46 66 66 C78 128 108 190 146 232 Z"/></clipPath>
+    <clipPath id="earR"><path d="M316 214 C344 150 384 92 416 52 C428 37 450 46 446 66 C434 128 404 190 366 232 Z"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- ears, each with a dark tip clipped to the ear's own outline -->
+  <path d="M196 214 C168 150 128 92 96 52 C84 37 62 46 66 66 C78 128 108 190 146 232 Z" fill="url(#fur)"/>
+  <g clip-path="url(#earL)"><rect x="0" y="0" width="512" height="118" fill="#33312f"/></g>
+  <path d="M316 214 C344 150 384 92 416 52 C428 37 450 46 446 66 C434 128 404 190 366 232 Z" fill="url(#fur)"/>
+  <g clip-path="url(#earR)"><rect x="0" y="0" width="512" height="118" fill="#33312f"/></g>
+
+  <!-- head -->
+  <ellipse cx="256" cy="302" rx="170" ry="150" fill="url(#fur)"/>
+
+  <!-- cheeks -->
+  <circle cx="136" cy="346" r="42" fill="#e03131"/>
+  <circle cx="376" cy="346" r="42" fill="#e03131"/>
+
+  <!-- eyes -->
+  <circle cx="196" cy="278" r="32" fill="#33312f"/>
+  <circle cx="316" cy="278" r="32" fill="#33312f"/>
+  <circle cx="186" cy="268" r="11" fill="#fff"/>
+  <circle cx="306" cy="268" r="11" fill="#fff"/>
+
+  <!-- nose and smile -->
+  <path d="M246 320 h20 l-10 11 z" fill="#33312f"/>
+  <path d="M214 346 q42 36 84 0" fill="none" stroke="#33312f" stroke-width="12" stroke-linecap="round"/>
+</svg>

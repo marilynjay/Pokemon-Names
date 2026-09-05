@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>Pokémon Name Trainer</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23ef4444'/><path d='M4 50h92a46 46 0 0 1-92 0z' fill='%23f8fafc'/><circle cx='50' cy='50' r='14' fill='%23f8fafc' stroke='%230f172a' stroke-width='6'/><circle cx='50' cy='50' r='46' fill='none' stroke='%230f172a' stroke-width='6'/><path d='M4 50h92' stroke='%230f172a' stroke-width='6'/></svg>">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Added to the iOS home screen this opens full-screen, with its own storage
+     container separate from Safari's. iOS 15+ takes the status bar colour from
+     theme-color, so it follows the page's light/dark palette. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Poké Names">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
 <style>
   :root {
     --bg: #f1f5f9; --panel: #ffffff; --panel-2: #f8fafc;
@@ -121,6 +132,46 @@
   .row label small { display: block; color: var(--ink-3); font-size: 12px; font-weight: 400; }
   input[type=radio], input[type=checkbox] { width: 19px; height: 19px; accent-color: var(--accent); flex: none; cursor: pointer; }
   select { font: inherit; font-size: 14px; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); max-width: 62%; }
+  /* Type colours, darkened from the canonical palette until white text clears
+     4.5:1 on every one of them. Same values in both themes. */
+  .badge[data-t="Normal"]   { --tc: #777759; }
+  .badge[data-t="Fire"]     { --tc: #bc560d; }
+  .badge[data-t="Water"]    { --tc: #3f6fd8; }
+  .badge[data-t="Electric"] { --tc: #8d7209; }
+  .badge[data-t="Grass"]    { --tc: #418428; }
+  .badge[data-t="Ice"]      { --tc: #367f7c; }
+  .badge[data-t="Fighting"] { --tc: #b52a24; }
+  .badge[data-t="Poison"]   { --tc: #8d3490; }
+  .badge[data-t="Ground"]   { --tc: #937025; }
+  .badge[data-t="Flying"]   { --tc: #7b61d4; }
+  .badge[data-t="Psychic"]  { --tc: #d92c67; }
+  .badge[data-t="Bug"]      { --tc: #6d7b0f; }
+  .badge[data-t="Rock"]     { --tc: #847429; }
+  .badge[data-t="Ghost"]    { --tc: #5f4a80; }
+  .badge[data-t="Dragon"]   { --tc: #5c2ce0; }
+  .badge[data-t="Dark"]     { --tc: #57443a; }
+  .badge[data-t="Steel"]    { --tc: #6d6d87; }
+  .badge[data-t="Fairy"]    { --tc: #b45287; }
+
+  .type-badges { display: flex; gap: 6px; justify-content: center; margin-top: 9px; flex-wrap: wrap; }
+  .badge {
+    background: var(--tc); color: #fff; border-radius: 99px; padding: 3px 11px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  }
+  /* Same chip as a settings toggle: filled when on, quiet when off. */
+  .types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .types .badge {
+    background: var(--panel-2); color: var(--ink-3); border: 1px solid var(--line);
+    padding: 9px 6px; text-align: center; cursor: pointer; font-size: 11px;
+  }
+  .types .badge:has(:checked) { background: var(--tc); color: #fff; border-color: var(--tc); }
+  .types .badge:has(:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* Visually hidden but still focusable and announced by screen readers. */
+  .types .badge input {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+
   .gens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
   .gens label {
     display: flex; align-items: center; gap: 7px; padding: 9px 10px; border-radius: 10px;
@@ -188,6 +239,7 @@ const DEFAULTS = {
   keepFamilies: true,
   regionals: true,
   gens: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  types: null,        // null means every type; an array is an explicit selection
   sessionSize: 40,
   showPhonetic: true,
   autoSpeak: false,
@@ -254,11 +306,17 @@ function phoneticFor(card) {
 }
 
 // ------------------------------------------------------------------- the deck
+const activeTypes = () => settings.types ?? DATA.types;
+
 function filteredCards() {
   const gens = new Set(settings.gens);
+  const types = new Set(activeTypes());
   return DATA.cards.filter((c) => {
     if (!gens.has(GROUPS.get(c.group).gen)) return false;
     if (!settings.regionals && c.region) return false;
+    // Types match per card, not per family: Steel keeps Galarian Meowth and
+    // Perrserker while dropping the Normal-type Meowth they sit beside.
+    if (!c.types.some((t) => types.has(t))) return false;
     return true;
   });
 }
@@ -373,6 +431,13 @@ function makeArt(card) {
   return slot;
 }
 
+// data-t drives the colour; the same badge doubles as the settings filter chip.
+function typeBadge(type, input) {
+  const node = el(input ? 'label' : 'span', { className: 'badge' }, input ? [input, type] : [type]);
+  node.setAttribute('data-t', type);
+  return node;
+}
+
 function speakButton(card) {
   const supported = 'speechSynthesis' in window;
   const btn = el('button', {
@@ -410,7 +475,8 @@ function renderCard() {
   ]);
 
   const say = el('div', { className: 'say' }, [speakButton(current)]);
-  card.append(makeArt(current), el('h1', { className: 'name' }, current.name), say, facts);
+  const badges = el('div', { className: 'type-badges' }, current.types.map((t) => typeBadge(t)));
+  card.append(makeArt(current), el('h1', { className: 'name' }, current.name), badges, say, facts);
   if (settings.showPhonetic) say.prepend(el('span', { className: 'phon' }, phoneticFor(current)));
 
   const wrong = el('button', { className: 'big bad', type: 'button' },
@@ -451,7 +517,7 @@ function renderDone() {
     const pool = filteredCards();
     const nextDue = pool.map((c) => progress[c.id]?.due ?? 0).filter((d) => d > now).sort((a, b) => a - b)[0];
     card.append(el('p', { className: 'hint' }, pool.length === 0
-      ? 'No Pokémon match your current filters — turn some generations back on in settings.'
+      ? 'No Pokémon match your current filters — widen the generations or types in settings.'
       : nextDue ? `You're on top of all ${pool.length}. The next one is due ${relative(nextDue - now)}.`
         : 'Adjust your filters or study anyway.'));
   } else {
@@ -554,8 +620,8 @@ function renderSettings() {
     };
     gens.append(el('label', { title: `${count} cards` }, [input, `Gen ${g}`, el('small', { style: 'color:var(--ink-3)' }, ` ${GEN_NAMES[g]}`)]));
   }
-  const all = el('button', { className: 'mini', type: 'button' }, 'All');
-  const none = el('button', { className: 'mini', type: 'button' }, 'None');
+  const all = el('button', { className: 'mini', type: 'button', ariaLabel: 'Select all generations' }, 'All');
+  const none = el('button', { className: 'mini', type: 'button', ariaLabel: 'Clear all generations' }, 'None');
   all.onclick = () => { settings.gens = [1,2,3,4,5,6,7,8,9]; save(); renderSettings(); startSession(); };
   none.onclick = () => { settings.gens = []; save(); renderSettings(); startSession(); };
   scope.append(gens, el('p', { className: 'note' },
@@ -564,6 +630,26 @@ function renderSettings() {
     toggle('regionals', 'Regional forms',
       `Alolan, Galarian, Hisuian and Paldean variants (${DATA.cards.filter((c) => c.region).length} extra cards)`,
       () => { renderSettings(); startSession(); }));
+
+  const types = el('div', { className: 'types' });
+  for (const t of DATA.types) {
+    const on = activeTypes().includes(t);
+    const input = el('input', { type: 'checkbox', checked: on });
+    input.onchange = () => {
+      settings.types = input.checked ? [...activeTypes(), t] : activeTypes().filter((x) => x !== t);
+      if (settings.types.length === DATA.types.length) settings.types = null;
+      save(); renderSettings(); startSession();
+    };
+    types.append(typeBadge(t, input));
+  }
+  const allT = el('button', { className: 'mini', type: 'button', ariaLabel: 'Select all types' }, 'All');
+  const noneT = el('button', { className: 'mini', type: 'button', ariaLabel: 'Clear all types' }, 'None');
+  allT.onclick = () => { settings.types = null; save(); renderSettings(); startSession(); };
+  noneT.onclick = () => { settings.types = []; save(); renderSettings(); startSession(); };
+  scope.append(el('h2', { style: 'margin:18px 0 10px' }, 'Types'), types,
+    el('p', { className: 'note' },
+      'Types match individual Pokémon rather than whole families, so Steel keeps Galarian Meowth and Perrserker but not the Normal-type Meowth beside them.'),
+    el('div', { className: 'minis', style: 'margin-top:10px' }, [allT, noneT]));
 
   const sizeSel = el('select');
   for (const [v, label] of [[20, '20 cards'], [40, '40 cards'], [80, '80 cards'], [0, 'No limit']]) {

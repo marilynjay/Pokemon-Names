@@ -7,6 +7,7 @@
   "scripts": {
     "serve": "python3 -m http.server 8123",
     "build-data": "node tools/build-data.mjs",
+    "build-icons": "node tools/make-icons.mjs",
     "test": "node tests/smoke.mjs"
   },
   "devDependencies": {

@@ -63,10 +63,25 @@ async function loadCsv(name) {
 }
 
 console.log('Loading CSVs...');
-const [species, pokemon, forms, formNames, speciesNames] = await Promise.all([
+const [species, pokemon, forms, formNames, speciesNames, pokemonTypes, types, typeNames] = await Promise.all([
   loadCsv('pokemon_species'), loadCsv('pokemon'), loadCsv('pokemon_forms'),
   loadCsv('pokemon_form_names'), loadCsv('pokemon_species_names'),
+  loadCsv('pokemon_types'), loadCsv('types'), loadCsv('type_names'),
 ]);
+
+// Types are per-form, not per-species: Meowth is Normal, its Alolan form Dark
+// and its Galarian form Steel. Ids above 10000 are the non-playable
+// "unknown"/"shadow" placeholders and are skipped.
+const typeNameOf = new Map();
+for (const r of typeNames) if (r.local_language_id === ENGLISH) typeNameOf.set(+r.type_id, r.name);
+const realTypes = types.filter((t) => +t.id < 10000);
+const typesOf = new Map();
+for (const r of pokemonTypes) {
+  if (+r.type_id >= 10000) continue;
+  if (!typesOf.has(+r.pokemon_id)) typesOf.set(+r.pokemon_id, []);
+  typesOf.get(+r.pokemon_id).push({ slot: +r.slot, name: typeNameOf.get(+r.type_id) });
+}
+for (const list of typesOf.values()) list.sort((a, b) => a.slot - b.slot);
 
 const nameOf = new Map();
 for (const r of speciesNames) if (r.local_language_id === ENGLISH) nameOf.set(+r.pokemon_species_id, r.name);
@@ -147,6 +162,7 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
         gen: +speciesById.get(speciesId).generation_id,
         group: chainId,
         region: region ? REGIONS[region] : null,
+        types: (typesOf.get(+p.id) ?? []).map((t) => t.name),
       });
       group.members.push(+p.id);
     }
@@ -170,6 +186,10 @@ const out = {
   generatedAt: new Date().toISOString().slice(0, 10),
   spriteBase: SPRITE_BASE,
   generations: [...new Set(groups.map((g) => g.gen))].sort((a, b) => a - b),
+  // Only types some Pokémon actually has natively — this drops Stellar, which
+  // exists as a Terastal type but is nobody's real typing, so it would show up
+  // as a filter that can never match anything.
+  types: [...new Set(cards.flatMap((c) => c.types))].sort(),
   groups,
   cards,
 };

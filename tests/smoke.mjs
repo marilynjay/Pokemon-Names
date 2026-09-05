@@ -74,6 +74,32 @@ log('Gen 1 off, first 12 cards:', withoutKanto.slice(0, 4).join(', '), '...');
 log(leaked.length ? `LEAKED KANTO: ${leaked.join(', ')}` : 'no Kanto families leaked \u2713');
 await settings(async () => { await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); });
 
+log('--- type filter ---');
+await p.evaluate(() => { localStorage.clear(); });
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForSelector('#actions button');
+await guess();
+log('Bulbasaur badges:', (await p.locator('.type-badges').innerText()).replace(/\n/g, ' + '));
+await p.click('#actions button.good');
+// The whole point: Gen 2 + Gen 3 families, Ghost types only.
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  for (const g of ['Gen 2', 'Gen 3']) await p.locator('.gens label', { hasText: g }).locator('input').check();
+  await p.locator('.minis').nth(1).getByText('None').click();
+  await p.locator('.types .badge', { hasText: 'Ghost' }).click();
+  await p.locator('select').first().selectOption('0');
+});
+const total = +(await p.locator('#countPill').textContent()).split('/')[1].trim();
+const ghosts = [];
+for (let i = 0; i < total; i++) {
+  ghosts.push(await guess());
+  const types = (await p.locator('.type-badges').innerText()).split('\n');
+  if (!types.includes('GHOST')) ghosts.push(`!! ${ghosts.at(-1)} is not Ghost (${types})`);
+  await p.click('#actions button.good');
+}
+log(`Gen 2+3 Ghost = ${total} cards:`, ghosts.join(', '));
+log('every card Ghost-typed:', ghosts.every((n) => !n.startsWith('!!')) ? 'yes \u2713' : 'NO');
+
 log('--- empty filter + reset ---');
 await settings(async () => { await p.click('text=None'); });
 log('all gens off:', (await p.locator('#card').innerText()).replace(/\n/g, ' / '));
