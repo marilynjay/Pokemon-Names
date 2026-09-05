@@ -122,12 +122,16 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
     if (from === null || !ids.has(from)) walk(+s.id);
   }
 
-  const baseSpecies = speciesById.get(ordered[0]);
+  // A family is identified by its lowest Pokédex number, not by whichever
+  // species happens to sit at the root of the tree. Gen 2 and 4 added babies
+  // that evolve into much older Pokémon, so keying off the root would file
+  // Pikachu under Pichu's Johto and name the Snorlax line after Munchlax.
+  const headSpecies = Math.min(...ordered);
   const group = {
     id: chainId,
-    name: nameOf.get(ordered[0]) ?? baseSpecies.identifier,
-    gen: +baseSpecies.generation_id,
-    dex: ordered[0],
+    name: nameOf.get(headSpecies) ?? speciesById.get(headSpecies).identifier,
+    gen: Math.min(...ordered.map((id) => +speciesById.get(id).generation_id)),
+    dex: headSpecies,
     members: [],
   };
 

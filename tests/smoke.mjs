@@ -1,6 +1,11 @@
 import { chromium } from 'playwright';
 const PORT = process.env.PORT ?? 8123;
-const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
+// Prefer an explicit browser, else a preinstalled one, else Playwright's own.
+const { existsSync } = await import('node:fs');
+const { globSync } = await import('node:fs');
+const found = process.env.CHROME_PATH
+  ?? globSync('/opt/pw-browsers/chromium-*/chrome-linux/chrome').find(existsSync);
+const b = await chromium.launch(found ? { executablePath: found } : {});
 const p = await b.newPage();
 const errs = [];
 p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
@@ -51,6 +56,23 @@ await p.reload({ waitUntil: 'domcontentloaded' });
 await p.waitForSelector('#actions button');
 await settings(async () => { await p.click('text=None'); await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); await p.locator('select').first().selectOption('0'); });
 for (let i = 0; i < 78; i++) { const n = await guess(); if (n === 'Alolan Meowth') { log('regional card facts:', (await p.locator('.facts').innerText()).replace(/\n/g, ' '), '| phon:', await p.locator('.phon').textContent()); await p.click('.speak'); log('regional spoken:', JSON.stringify((await p.evaluate(() => window.__spoken)).at(-1))); } await p.click('#actions button.good'); }
+
+log('--- generation filter drops whole families ---');
+// Regression: family generation used to come from the evolution root, so the
+// Gen 2 babies (Pichu, Cleffa, Elekid...) filed their Kanto lines under Johto
+// and unchecking Gen 1 still served up Pikachu.
+await p.evaluate(() => { localStorage.clear(); });
+await p.reload({ waitUntil: 'domcontentloaded' });
+await p.waitForSelector('#actions button');
+await settings(async () => { await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').uncheck(); });
+const withoutKanto = [];
+for (let i = 0; i < 12; i++) { withoutKanto.push(await guess()); await p.click('#actions button.good'); }
+const kanto = ['Pichu', 'Pikachu', 'Raichu', 'Cleffa', 'Clefairy', 'Igglybuff', 'Jigglypuff', 'Tyrogue',
+  'Happiny', 'Chansey', 'Mime Jr.', 'Smoochum', 'Elekid', 'Magby', 'Munchlax', 'Snorlax', 'Bulbasaur'];
+const leaked = kanto.filter((n) => withoutKanto.includes(n));
+log('Gen 1 off, first 12 cards:', withoutKanto.slice(0, 4).join(', '), '...');
+log(leaked.length ? `LEAKED KANTO: ${leaked.join(', ')}` : 'no Kanto families leaked \u2713');
+await settings(async () => { await p.locator('.gens label', { hasText: 'Gen 1' }).locator('input').check(); });
 
 log('--- empty filter + reset ---');
 await settings(async () => { await p.click('text=None'); });

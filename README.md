@@ -50,8 +50,10 @@ synced or sent anywhere.
 ### Filtering
 
 Generation checkboxes plus a switch for regional forms. Generations filter by
-*family*, not by individual card, so a family stays whole: Perrserker is a Gen 8
-Pokémon but rides along with Gen 1 Meowth.
+*family*, not by individual card, so a family stays whole, and a family is filed
+under its **earliest** member. That cuts both ways: Perrserker is a Gen 8 Pokémon
+but rides along with Gen 1 Meowth, and Pichu is a Gen 2 Pokémon but rides along
+with Gen 1 Pikachu — so unchecking Kanto really does retire the whole Pikachu line.
 
 ### Pronunciation
 
