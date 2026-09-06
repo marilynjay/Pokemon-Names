@@ -416,41 +416,68 @@ function next() {
   if (queue[0]) new Image().src = artUrl(queue[0]);   // preload the next card
 }
 
+// Made-up names padding out letters the Pokédex barely covers. Only X falls
+// short of four real names (Xatu, Xerneas, Xurkitree), so one invention does it.
+// These can only ever appear as wrong answers — the correct one is always a real
+// card — and they are used last, after every real candidate is exhausted.
+const INVENTED = { X: ['Xerxies'] };
+
 // Three decoys sharing the answer's first letter, which is what makes this hard:
-// Machop, Machoke, Machamp, Magikarp rather than four unrelated names. Preference
-// runs from "in the deck you're studying, and the same kind of card" outwards,
-// because only X has fewer than four names and Paldean forms number just two.
+// Machop, Machoke, Machamp, Magikarp rather than four unrelated names.
 function buildChoices(card) {
-  const pool = filteredCards();
+  const realNames = new Set(DATA.cards.map((c) => c.name));
+  const notAnswer = (n) => n !== card.name;
+
+  if (card.region) {
+    // A regional form is only a real test when the species names match too, so
+    // Alolan Rattata runs against Alolan Raticate rather than Alolan Meowth.
+    const letter = card.base[0].toUpperCase();
+    const sameBase = (c) => c.base[0].toUpperCase() === letter;
+    const real = DATA.cards.filter((c) => c.region === card.region && sameBase(c)).map((c) => c.name);
+    // A region seldom has four forms sharing a letter, so the rest are minted
+    // from species that letter does cover: Alolan Rapidash, Alolan Rhydon.
+    const bases = DATA.cards.filter((c) => !c.region && sameBase(c));
+    const mint = (list) => [...new Set(list.map((c) => `${card.region} ${c.base}`))].filter((n) => !realNames.has(n));
+    // Prefer species that could plausibly have such a form — no legendaries, and
+    // nothing postdating the region — so a decoy isn't a giveaway.
+    const plausible = bases.filter((c) => !c.legend && c.gen <= card.gen);
+    return assembleChoices(card,
+      [real, mint(plausible), mint(bases)].map((t) => shuffle(t.filter(notAnswer))));
+  }
+
   const letter = card.name[0].toUpperCase();
   const sameLetter = (c) => c.name[0].toUpperCase() === letter;
-  const sameKind = (c) => (c.region ?? null) === (card.region ?? null);
-  const other = (c) => c.name !== card.name;
-  const tiers = [
-    pool.filter((c) => other(c) && sameLetter(c) && sameKind(c)),
-    pool.filter((c) => other(c) && sameLetter(c)),
-    DATA.cards.filter((c) => other(c) && sameLetter(c) && sameKind(c)),
-    DATA.cards.filter((c) => other(c) && sameLetter(c)),
-    DATA.cards.filter(other),
-  ];
+  const plain = (c) => !c.region;
+  const names = (list) => shuffle(list.map((c) => c.name).filter(notAnswer));
+  return assembleChoices(card, [
+    names(filteredCards().filter((c) => sameLetter(c) && plain(c))),
+    names(DATA.cards.filter((c) => sameLetter(c) && plain(c))),
+    shuffle((INVENTED[letter] ?? []).filter(notAnswer)),
+    names(DATA.cards.filter(sameLetter)),
+    names(DATA.cards),
+  ]);
+}
+
+// Takes the first three usable names, tier by tier, then shuffles the answer in.
+function assembleChoices(card, tiers) {
   const picked = [];
   const seen = new Set([card.name]);
   for (const tier of tiers) {
-    for (const c of shuffle(tier)) {
+    for (const name of tier) {
       if (picked.length === 3) break;
-      if (seen.has(c.name)) continue;
-      seen.add(c.name);
-      picked.push(c);
+      if (seen.has(name)) continue;
+      seen.add(name);
+      picked.push(name);
     }
     if (picked.length === 3) break;
   }
-  return shuffle([card, ...picked]);
+  return shuffle([card.name, ...picked]);
 }
 
 function choose(option) {
   if (mcPicked) return;                       // ignore double taps
   mcPicked = option;
-  applyGrade(option.name === current.name);
+  applyGrade(option === current.name);
   flipped = true;
   render();
 }
@@ -529,7 +556,7 @@ function renderCard() {
       actions.className = 'actions choices';
       for (const [i, opt] of mcOptions.entries()) {
         const btn = el('button', { className: 'big choice', type: 'button' },
-          [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt.name)]);
+          [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt)]);
         btn.onclick = () => choose(opt);
         actions.append(btn);
       }
@@ -560,9 +587,9 @@ function renderCard() {
 
   if (mcPicked) {
     // The choice already graded it, so the back just reports and moves on.
-    const correct = mcPicked.name === current.name;
+    const correct = mcPicked === current.name;
     card.prepend(el('div', { className: `result ${correct ? 'ok' : 'no'}` },
-      correct ? '\u2713 Correct' : `\u2717 You picked ${mcPicked.name}`));
+      correct ? '\u2713 Correct' : `\u2717 You picked ${mcPicked}`));
     const onward = el('button', { className: 'big primary', type: 'button' },
       [el('span', {}, 'Next'), el('small', {}, queue.length ? `${queue.length} to go` : 'last one')]);
     onward.onclick = () => next();

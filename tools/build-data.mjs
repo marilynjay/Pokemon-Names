@@ -161,7 +161,8 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
     for (const p of variantsOf.get(speciesId) ?? []) {
       const region = regionOf.get(+p.id);
       const base = nameOf.get(speciesId) ?? speciesById.get(speciesId).identifier;
-      const speciesGen = +speciesById.get(speciesId).generation_id;
+      const speciesRow = speciesById.get(speciesId);
+      const speciesGen = +speciesRow.generation_id;
       cards.push({
         id: +p.id,
         name: region ? `${REGIONS[region]} ${base}` : base,
@@ -171,6 +172,9 @@ for (const [chainId, members] of [...families].sort((a, b) => Math.min(...a[1].m
         group: chainId,
         region: region ? REGIONS[region] : null,
         types: (typesOf.get(+p.id) ?? []).map((t) => t.name),
+        // Legendaries and mythicals never receive regional forms, so the app
+        // avoids minting obviously-fake decoys like "Alolan Reshiram".
+        ...(speciesRow.is_legendary === '1' || speciesRow.is_mythical === '1' ? { legend: 1 } : {}),
       });
       group.members.push(+p.id);
     }

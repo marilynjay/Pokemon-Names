@@ -150,7 +150,47 @@ await p.keyboard.press('3');
 log('keyboard answer gave a verdict:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
 await p.keyboard.press(' ');
 log('space advanced to a fresh set of', await p.locator('.choices button').count(), 'options');
-await settings(async () => { await p.click('#m-flip'); });
+log('--- decoys for regional forms and thin letters ---');
+// Regional decoys must share the region AND the species' first letter, minting
+// names where real ones run out: Alolan Rattata vs Alolan Raticate, not Meowth.
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  await p.locator('.gens label', { hasText: 'Gen 7' }).locator('input').check();
+});
+let regionalRounds = 0, mixedBase = 0, mixedRegion = 0, sample = null;
+for (let i = 0; i < 40 && regionalRounds < 6; i++) {
+  const opts = strip(await p.locator('.choices button').allTextContents());
+  await p.locator('.choices button').first().click();
+  const name = await p.locator('.name').first().textContent();
+  if (name.startsWith('Alolan')) {
+    regionalRounds++;
+    sample ??= `${name} -> ${opts.join(' | ')}`;
+    if (!opts.every((n) => n.startsWith('Alolan'))) mixedRegion++;
+    if (new Set(opts.map((n) => n.split(' ')[1][0])).size !== 1) mixedBase++;
+  }
+  await p.click('#actions button');
+}
+log(`${regionalRounds} Alolan rounds: ${mixedRegion} mixed region, ${mixedBase} mixed species letter`);
+log('sample:', sample ?? 'none seen');
+
+// X has only three real names, so the invented one has to fill the fourth slot.
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  await p.locator('.gens label', { hasText: 'Gen 2' }).locator('input').check();
+  await p.locator('.minis').nth(1).getByText('None').click();
+  await p.locator('.types .badge', { hasText: 'Psychic' }).click();
+});
+let xatu = null;
+for (let i = 0; i < 60 && !xatu; i++) {
+  const opts = strip(await p.locator('.choices button').allTextContents());
+  await p.locator('.choices button').first().click();
+  if ((await p.locator('.name').first().textContent()) === 'Xatu') xatu = opts;
+  if (await p.locator('#actions button').count()) await p.click('#actions button'); else break;
+}
+log('Xatu options:', xatu ? xatu.join(' | ') : 'not reached');
+log('all four start with X:', xatu && xatu.every((n) => n[0] === 'X') ? 'yes \u2713' : 'NO');
+
+await settings(async () => { await p.locator('.minis').first().getByText('All').click(); await p.click('#m-flip'); });
 log('back in flip mode, Guess button present:',
     (await p.locator('#actions button').textContent()).includes('Guess') ? 'yes \u2713' : 'NO');
 

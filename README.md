@@ -80,16 +80,24 @@ chrome. One caveat on iOS: a home-screen web app gets a **separate storage
 container** from Safari, so progress you built up in the browser won't carry over
 into the installed copy — start as you mean to continue.
 
-### Distractors
+### Decoys
 
-The three decoys share the answer's first letter. Preference runs outward from
-"already in the deck you're studying, and the same kind of card" to progressively
-looser matches, because two buckets are thin: only `X` has fewer than four names
-(Xatu, Xerneas, Xurkitree), and there are just two Paldean forms. Regional forms
-therefore draw other regional forms — *Alolan Rattata* against *Alolan Meowth*,
-*Alolan Raichu*, *Alolan Grimer* — so you have to know the species, not just the
-prefix. Decoys can come from outside your current filters; requiring them to be
-in the deck would make a seven-card deck repeat itself.
+The three decoys share the answer's first letter, and where a real Pokédex entry
+doesn't exist the app mints one. A minted name can only ever be a wrong answer —
+the correct option is always a real card.
+
+**Regional forms match on the species too.** *Alolan Rattata* runs against
+*Alolan Raticate*, *Alolan Raichu* and *Alolan Roserade*, not *Alolan Meowth* —
+otherwise the prefix alone gives it away. Only three real Alolan forms start with
+R, so the fourth is minted from a species that letter does cover. Minting prefers
+plausible candidates: no legendaries or mythicals, and nothing postdating the
+region, so you won't be offered *Alolan Reshiram*.
+
+**`X` is the one letter with fewer than four real names** — Xatu, Xerneas,
+Xurkitree. *Xerxies* fills the gap.
+
+Decoys can come from outside your current filters; requiring them to be in the
+deck would make a seven-card deck repeat itself.
 
 ### Keyboard
 
