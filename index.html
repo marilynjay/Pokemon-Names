@@ -273,6 +273,7 @@ const GEN_NAMES = ['', 'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'A
 const DEFAULTS = {
   answerMode: 'flip',   // 'flip' = reveal and self-grade, 'choice' = pick one of four
   speakChoices: false,  // a speaker button beside each choice, for pre-readers
+  easyChoices: false,   // decoys that sound different, rather than same-letter
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -458,6 +459,20 @@ function buildChoices(card) {
   const realNames = new Set(DATA.cards.map((c) => c.name));
   const notAnswer = (n) => n !== card.name;
 
+  if (settings.easyChoices) {
+    // Gentle mode: decoys that sound as unlike the answer as possible. Every
+    // option starts with a different letter, so a listener can tell them apart
+    // by ear. Region still matches, or the odd one out would give itself away.
+    const sameKind = (c) => (c.region ?? null) === (card.region ?? null);
+    const names = (list) => shuffle(list.map((c) => c.name).filter(notAnswer));
+    return assembleChoices(card, [
+      names(filteredCards().filter(sameKind)),
+      names(DATA.cards.filter(sameKind)),
+      names(filteredCards()),
+      names(DATA.cards),
+    ], { distinctLetters: true });
+  }
+
   if (card.region) {
     // A regional form is only a real test when the species names match too, so
     // Alolan Rattata runs against Alolan Raticate rather than Alolan Meowth.
@@ -488,19 +503,35 @@ function buildChoices(card) {
   ]);
 }
 
+// "Alolan Rattata" is an R name, not an A name: when every option carries the
+// same region prefix it tells you nothing, so the species letter is the one
+// that matters — for telling options apart and for matching them.
+function speciesLetter(name) {
+  const [first, ...rest] = name.split(' ');
+  return (rest.length && REGION_WORDS.has(first) ? rest.join(' ') : name)[0].toUpperCase();
+}
+
 // Takes the first three usable names, tier by tier, then shuffles the answer in.
-function assembleChoices(card, tiers) {
+// With distinctLetters the four options must all start with different letters;
+// a small deck can starve that, so a second pass drops the rule to fill up.
+function assembleChoices(card, tiers, { distinctLetters = false } = {}) {
   const picked = [];
   const seen = new Set([card.name]);
-  for (const tier of tiers) {
-    for (const name of tier) {
-      if (picked.length === 3) break;
-      if (seen.has(name)) continue;
-      seen.add(name);
-      picked.push(name);
+  const letters = new Set([speciesLetter(card.name)]);
+  const walk = (enforceLetters) => {
+    for (const tier of tiers) {
+      for (const name of tier) {
+        if (picked.length === 3) return;
+        if (seen.has(name)) continue;
+        if (enforceLetters && letters.has(speciesLetter(name))) continue;
+        seen.add(name);
+        letters.add(speciesLetter(name));
+        picked.push(name);
+      }
     }
-    if (picked.length === 3) break;
-  }
+  };
+  walk(distinctLetters);
+  if (picked.length < 3) walk(false);
   return shuffle([card.name, ...picked]);
 }
 
@@ -781,6 +812,9 @@ function renderSettings() {
     mode.append(toggle('speakChoices', 'Speaker on every choice',
       'Adds a \u{1F50A} button beside each answer so it can be heard \u2014 for anyone who cannot read yet',
       () => render()));
+    mode.append(toggle('easyChoices', 'Easier choices',
+      'Decoys that sound clearly different, instead of four names starting with the same letter',
+      () => startSession()));
   }
   wrap.append(mode);
 

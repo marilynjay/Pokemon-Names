@@ -14,7 +14,13 @@ Two ways to answer, switchable in settings:
   which is what makes it hard: *Machop, Machoke, Machamp, Magikarp* rather than
   four unrelated names. Picking grades it for you.
 
-Multiple choice has a **Speaker on every choice** sub-option, which puts a 🔊
+Multiple choice has two sub-options.
+
+**Easier choices** swaps the same-letter decoys for ones that sound as different
+as possible — every option starts with a different letter, so *Bulbasaur, Klang,
+Shuppet, Timburr* rather than four names a beginner can't separate by ear.
+
+**Speaker on every choice** puts a 🔊
 button beside each answer. It reads that option aloud without answering, so a
 child who can't read yet can hear the four names and pick the one they know. The
 speaker and the answer are separate buttons — a speaker can't be nested inside
@@ -93,12 +99,20 @@ The three decoys share the answer's first letter, and where a real Pokédex entr
 doesn't exist the app mints one. A minted name can only ever be a wrong answer —
 the correct option is always a real card.
 
+A regional form is judged on its species letter, not the prefix: *Alolan Rattata*
+is an R name, because the A is shared by every Alolan form and so tells you
+nothing. That holds in both directions — for matching decoys in the hard mode and
+for separating them in the easy one.
+
 **Regional forms match on the species too.** *Alolan Rattata* runs against
 *Alolan Raticate*, *Alolan Raichu* and *Alolan Roserade*, not *Alolan Meowth* —
 otherwise the prefix alone gives it away. Only three real Alolan forms start with
 R, so the fourth is minted from a species that letter does cover. Minting prefers
 plausible candidates: no legendaries or mythicals, and nothing postdating the
 region, so you won't be offered *Alolan Reshiram*.
+
+With **Easier choices** on, none of this applies: decoys are picked for maximum
+contrast instead, keeping the region so the odd one out doesn't give itself away.
 
 **`X` is the one letter with fewer than four real names** — Xatu, Xerneas,
 Xurkitree. *Xerxies* fills the gap.

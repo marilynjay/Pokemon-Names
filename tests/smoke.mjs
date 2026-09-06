@@ -214,7 +214,48 @@ const small = await p.locator('.speak-choice').evaluateAll((ns) =>
 log('speakers below a 44px tap target:', small);
 await p.locator('.choice-row button.choice').first().click();
 log('answer button still grades:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
-await settings(async () => { await p.click('#t-speakChoices'); await p.click('#m-flip'); });
+log('--- easier choices ---');
+await settings(async () => { await p.click('#t-easyChoices'); });
+await p.waitForSelector('.choice-row');
+// Gentle mode: every option must start with a different letter, judged on the
+// species so a shared region prefix doesn't count as a match.
+const letterOf = (n) => { const [a, ...r] = n.split(' ');
+  return (r.length && ['Alolan','Galarian','Hisuian','Paldean'].includes(a) ? r.join(' ') : n)[0].toUpperCase(); };
+let repeats = 0, easySample = null;
+for (let i = 0; i < 20; i++) {
+  const opts = strip(await p.locator('.choice-row button.choice').allTextContents());
+  if (new Set(opts.map(letterOf)).size !== 4) repeats++;
+  easySample ??= opts.join(' | ');
+  await p.locator('.choice-row button.choice').first().click();
+  await p.click('#actions button');
+}
+log(`20 rounds, ${repeats} with a repeated first letter`);
+log('sample:', easySample);
+
+// A regional answer keeps its region, or the odd one out gives itself away.
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  await p.locator('.gens label', { hasText: 'Gen 7' }).locator('input').check();
+});
+let regional = 0, mixed = 0, regionalSample = null;
+for (let i = 0; i < 40 && regional < 4; i++) {
+  const opts = strip(await p.locator('.choice-row button.choice').allTextContents());
+  await p.locator('.choice-row button.choice').first().click();
+  const name = await p.locator('.name').first().textContent();
+  if (name.startsWith('Alolan')) {
+    regional++;
+    regionalSample ??= opts.join(' | ');
+    if (!opts.every((n) => n.startsWith('Alolan'))) mixed++;
+  }
+  await p.click('#actions button');
+}
+log(`${regional} Alolan rounds, ${mixed} with a mixed region`);
+log('sample:', regionalSample ?? 'none seen');
+
+await settings(async () => {
+  await p.locator('.minis').first().getByText('All').click();
+  await p.click('#t-easyChoices'); await p.click('#t-speakChoices'); await p.click('#m-flip');
+});
 log('back in flip mode, Guess button present:',
     (await p.locator('#actions button').textContent()).includes('Guess') ? 'yes \u2713' : 'NO');
 
