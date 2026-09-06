@@ -267,8 +267,7 @@ for (let i = 0; i < 20; i++) {
 log(`20 rounds, ${repeats} with a repeated first letter`);
 log('sample:', easySample);
 
-// Easy mode is for small fingers: the targets and numbers must actually grow,
-// and nothing may be pushed off the bottom of a short screen.
+// Choice buttons are sized for a finger everywhere, not just in easy mode.
 const measure = () => p.evaluate(() => {
   const rects = [...document.querySelectorAll('button.choice')].map((n) => n.getBoundingClientRect());
   return {
@@ -280,16 +279,18 @@ const measure = () => p.evaluate(() => {
       <= window.innerHeight + 1,
   };
 });
-const roomy = await measure();
+const easyOn = await measure();
 await settings(async () => { await p.click('#t-easyChoices'); });
 await p.waitForSelector('.choices button');
-const tight = await measure();
+const easyOff = await measure();
 await settings(async () => { await p.click('#t-easyChoices'); });
 await p.waitForSelector('.choices button');
-log(`button height ${tight.height}px -> ${roomy.height}px, gap ${tight.gap}px -> ${roomy.gap}px, number ${tight.number}px -> ${roomy.number}px`);
-log('targets grew:', roomy.height > tight.height && roomy.number > tight.number && roomy.gap > tight.gap ? 'yes \u2713' : 'NO');
-log('every target at least 44px:', roomy.height >= 44 && tight.height >= 44 ? 'yes \u2713' : 'NO');
-log('nothing pushed off screen:', roomy.overflow === 0 && roomy.lastOnScreen ? 'yes \u2713' : `NO (${roomy.overflow}px over)`);
+log(`buttons ${easyOff.height}px tall, ${easyOff.gap}px apart, numbers ${easyOff.number}px`);
+log('same size with easy mode on:',
+    easyOn.height === easyOff.height && easyOn.number === easyOff.number && easyOn.gap === easyOff.gap
+      ? 'yes \u2713' : `NO (${easyOn.height}/${easyOn.number}/${easyOn.gap})`);
+log('comfortably past a 44px target:', easyOff.height >= 60 ? 'yes \u2713' : `NO (${easyOff.height}px)`);
+log('nothing pushed off screen:', easyOff.overflow === 0 && easyOff.lastOnScreen ? 'yes \u2713' : `NO (${easyOff.overflow}px over)`);
 
 // A regional answer keeps its region, or the odd one out gives itself away.
 await settings(async () => {

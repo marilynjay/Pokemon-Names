@@ -14,15 +14,15 @@ Two ways to answer, switchable in settings:
   which is what makes it hard: *Machop, Machoke, Machamp, Magikarp* rather than
   four unrelated names. Picking grades it for you.
 
+Choice buttons are sized for a finger rather than a cursor — 76px tall with 14px
+between them, since a stray tap lands on the neighbouring button — and the
+artwork shrinks to make room rather than pushing an option off a short screen.
+
 Multiple choice has four sub-options.
 
 **Easier choices** swaps the same-letter decoys for ones that sound as different
 as possible — every option starts with a different letter, so *Bulbasaur, Klang,
-Shuppet, Timburr* rather than four names a beginner can't separate by ear. It
-also scales the whole row up for small fingers: taller buttons, larger numbers,
-and more air between the rows, since a stray tap lands on the neighbouring
-button. On a short screen the artwork shrinks to make room rather than pushing
-an option off the bottom.
+Shuppet, Timburr* rather than four names a beginner can't separate by ear.
 
 **Number the choices** (on by default) shows 1–4 beside each answer, pinned to a
 left column so they line up. The number keys work whether or not the badges show.
