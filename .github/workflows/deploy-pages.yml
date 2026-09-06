@@ -2,7 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/pokemon-flashcard-app-1i5oq3]
+    # main only: the github-pages environment refuses deployments from any
+    # other branch, and a doomed run still holds the concurrency slot, stalling
+    # the real deploy behind it.
+    branches: [main]
   workflow_dispatch:
 
 permissions:
