@@ -14,11 +14,19 @@ Two ways to answer, switchable in settings:
   which is what makes it hard: *Machop, Machoke, Machamp, Magikarp* rather than
   four unrelated names. Picking grades it for you.
 
-Multiple choice has two sub-options.
+Multiple choice has four sub-options.
 
 **Easier choices** swaps the same-letter decoys for ones that sound as different
 as possible — every option starts with a different letter, so *Bulbasaur, Klang,
 Shuppet, Timburr* rather than four names a beginner can't separate by ear.
+
+**Number the choices** (on by default) shows 1–4 beside each answer, pinned to a
+left column so they line up. The number keys work whether or not the badges show.
+
+**Fireworks when you are right** (on by default) throws a burst of sparks over
+the card on a correct pick. Anything still in flight is cleared when you move on,
+so the previous card's celebration never hangs over the next one. Skipped
+entirely when the viewer prefers reduced motion.
 
 **Speaker on every choice** puts a 🔊
 button beside each answer. It reads that option aloud without answering, so a

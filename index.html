@@ -123,12 +123,14 @@
   button.bad small { color: color-mix(in srgb, var(--bad) 70%, transparent); }
 
   /* One choice per row — names run to 19 characters and must not truncate. */
-  button.choice { flex-direction: row; justify-content: center; gap: 9px; padding: 13px 12px; font-size: 15.5px; }
+  button.choice { position: relative; flex-direction: row; justify-content: center; gap: 9px; padding: 13px 12px; font-size: 15.5px; }
+  /* Numbers pin to a tidy left column; symmetric padding keeps names centred. */
+  button.choice:has(.n) { padding-left: 46px; padding-right: 46px; }
   button.choice .n {
-    font-size: 11px; font-weight: 700; color: var(--ink-3); border: 1px solid var(--line);
-    border-radius: 6px; padding: 1px 6px; line-height: 1.4;
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; font-weight: 700; color: var(--ink-2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 2px 8px; line-height: 1.4;
   }
-  @media (hover: none) { button.choice .n { display: none; } }
   /* A speaker can't nest inside the answer button, so each option becomes a row
      of two sibling buttons: answer on the left, "hear it" on the right. */
   .choice-row { display: flex; gap: 8px; }
@@ -147,12 +149,33 @@
   .result { border-radius: 10px; padding: 7px 15px; font-weight: 700; font-size: 13.5px; margin-bottom: 10px; }
   .result.ok { background: var(--good-bg); color: var(--good); }
   .result.no { background: var(--bad-bg); color: var(--bad); }
+  .result.ok { animation: pop 420ms cubic-bezier(.2, 1.4, .4, 1); }
+  @keyframes pop { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  /* A burst of sparks thrown from the middle of the card on a correct pick. */
+  .burst { position: fixed; pointer-events: none; z-index: 60; }
+  .burst i {
+    position: absolute; width: 11px; height: 11px; border-radius: 3px; margin: -5px 0 0 -5px;
+    animation: spark 900ms cubic-bezier(.15, .75, .3, 1) forwards;
+  }
+  @keyframes spark {
+    0%   { transform: translate(0, 0) scale(.3) rotate(0deg); opacity: 1; }
+    65%  { opacity: 1; }
+    100% { transform: translate(var(--dx), calc(var(--dy) + 34px)) scale(1) rotate(260deg); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .result.ok { animation: none; }
+    .burst { display: none; }
+  }
   /* On a short phone all four options still have to fit without scrolling. */
   @media (max-height: 660px) {
     .card.choosing { padding: 12px; }
     .card.choosing .art-slot { max-width: 124px; }
     /* Speaker buttons keep a 44px tap target, so the artwork yields the rest. */
-    .card.choosing.with-speakers .art-slot { max-width: 92px; }
+    .card.choosing.with-speakers .art-slot { max-width: 84px; }
+    /* Tighten the number gutter too, so long names wrap less often here. */
+    button.choice:has(.n) { padding-left: 38px; padding-right: 38px; }
+    button.choice .n { left: 8px; padding: 1px 6px; }
     button.choice { padding: 9px 10px; font-size: 15px; }
     .actions.choices { gap: 6px; }
   }
@@ -274,6 +297,8 @@ const DEFAULTS = {
   answerMode: 'flip',   // 'flip' = reveal and self-grade, 'choice' = pick one of four
   speakChoices: false,  // a speaker button beside each choice, for pre-readers
   easyChoices: false,   // decoys that sound different, rather than same-letter
+  numberChoices: true,  // show 1-4 beside each answer
+  fireworks: true,      // a burst of sparks on a correct pick
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -439,6 +464,7 @@ function startSession({ all = false, onlyMissed = null } = {}) {
 let missedThisSession = new Map();
 
 function next() {
+  clearBursts();
   current = queue.shift() ?? null;
   flipped = false;
   mcPicked = null;
@@ -535,12 +561,48 @@ function assembleChoices(card, tiers, { distinctLetters = false } = {}) {
   return shuffle([card.name, ...picked]);
 }
 
+const SPARK_COLOURS = ['#ffd93b', '#ff6b6b', '#4ecdc4', '#7c83ff', '#95e06c', '#ff9f43'];
+
+// Thrown from the middle of the card, and cleaned up after itself. Skipped when
+// the viewer asks for reduced motion, which the stylesheet also honours.
+// Sparks outlive their card by a second, so anything still in flight is cleared
+// on the way out — otherwise a fast player sees the last card's celebration
+// hanging over the next one, including over an answer they got wrong.
+function clearBursts() {
+  for (const burst of document.querySelectorAll('.burst')) burst.remove();
+}
+
+function celebrate() {
+  if (!settings.fireworks) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  clearBursts();
+  const box = $('#card').getBoundingClientRect();
+  const burst = el('div', { className: 'burst' });
+  burst.style.left = `${box.left + box.width / 2}px`;
+  burst.style.top = `${box.top + box.height / 2}px`;
+  const count = 20;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.35;
+    const reach = 75 + Math.random() * 85;
+    const spark = el('i');
+    spark.style.setProperty('--dx', `${Math.cos(angle) * reach}px`);
+    spark.style.setProperty('--dy', `${Math.sin(angle) * reach}px`);
+    spark.style.background = SPARK_COLOURS[i % SPARK_COLOURS.length];
+    spark.style.animationDelay = `${Math.random() * 90}ms`;
+    burst.append(spark);
+  }
+  document.body.append(burst);
+  setTimeout(() => burst.remove(), 1300);
+}
+
 function choose(option) {
   if (mcPicked) return;                       // ignore double taps
   mcPicked = option;
-  applyGrade(option === current.name);
+  const correct = option === current.name;
+  applyGrade(correct);
   flipped = true;
   render();
+  if (correct) celebrate();
 }
 
 function grade(right) { applyGrade(right); next(); }
@@ -619,7 +681,9 @@ function renderCard() {
       const canSpeak = 'speechSynthesis' in window;
       for (const [i, opt] of mcOptions.entries()) {
         const btn = el('button', { className: 'big choice', type: 'button' },
-          [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt)]);
+          settings.numberChoices
+            ? [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt)]
+            : [el('span', {}, opt)]);
         btn.onclick = () => choose(opt);
         if (!settings.speakChoices) { actions.append(btn); continue; }
         const say = el('button', {
@@ -815,6 +879,10 @@ function renderSettings() {
     mode.append(toggle('easyChoices', 'Easier choices',
       'Decoys that sound clearly different, instead of four names starting with the same letter',
       () => startSession()));
+    mode.append(toggle('numberChoices', 'Number the choices',
+      'Shows 1\u20134 beside each answer', () => render()));
+    mode.append(toggle('fireworks', 'Fireworks when you are right',
+      'A burst of sparks over the card on a correct pick'));
   }
   wrap.append(mode);
 

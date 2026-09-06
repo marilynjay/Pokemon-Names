@@ -214,19 +214,54 @@ const small = await p.locator('.speak-choice').evaluateAll((ns) =>
 log('speakers below a 44px tap target:', small);
 await p.locator('.choice-row button.choice').first().click();
 log('answer button still grades:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
+log('--- numbers and fireworks ---');
+// The section above left a card answered; step past it before reading choices.
+if (await p.locator('.result').count()) await p.click('#actions button');
+await settings(async () => { await p.click('#t-speakChoices'); });   // back to plain buttons
+await p.waitForSelector('.choices button');
+log('numbered by default:', await p.locator('.choices button .n').count(), 'badges');
+const lefts = await p.locator('.choices button .n').evaluateAll((ns) =>
+  new Set(ns.map((n) => Math.round(n.getBoundingClientRect().left))).size);
+log('numbers line up in one column:', lefts === 1 ? 'yes \u2713' : 'NO');
+
+// Hunt for a correct answer and confirm the burst fires, then cleans itself up.
+let sparks = 0, wrongBursts = 0, hitOne = false;
+for (let round = 0; round < 12 && !hitOne; round++) {
+  const n = await p.locator('.choices button').count();
+  for (let i = 0; i < n; i++) {
+    await p.locator('.choices button').nth(i).click();
+    const verdict = await p.locator('.result').textContent();
+    if (verdict.startsWith('\u2713')) { sparks = await p.locator('.burst i').count(); hitOne = true; }
+    else if (await p.locator('.burst').count()) wrongBursts++;
+    await p.click('#actions button');
+    if (hitOne || !(await p.locator('.choices button').count())) break;
+  }
+}
+log(`correct pick threw ${sparks} sparks; wrong picks threw bursts on ${wrongBursts} occasions`);
+await p.waitForTimeout(1500);
+log('burst removed itself:', (await p.locator('.burst').count()) === 0 ? 'yes \u2713' : 'NO \u2014 leaked into the DOM');
+
+await settings(async () => { await p.click('#t-numberChoices'); });
+await p.waitForSelector('.choices button');
+log('numbers off:', await p.locator('.choices button .n').count(), 'badges');
+await p.keyboard.press('1');
+log('number keys still answer with badges hidden:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
+await p.click('#actions button');
+await settings(async () => { await p.click('#t-numberChoices'); });
+
 log('--- easier choices ---');
 await settings(async () => { await p.click('#t-easyChoices'); });
-await p.waitForSelector('.choice-row');
+await p.waitForSelector('.choices button');
 // Gentle mode: every option must start with a different letter, judged on the
 // species so a shared region prefix doesn't count as a match.
 const letterOf = (n) => { const [a, ...r] = n.split(' ');
   return (r.length && ['Alolan','Galarian','Hisuian','Paldean'].includes(a) ? r.join(' ') : n)[0].toUpperCase(); };
 let repeats = 0, easySample = null;
 for (let i = 0; i < 20; i++) {
-  const opts = strip(await p.locator('.choice-row button.choice').allTextContents());
+  const opts = strip(await p.locator('.choices button.choice').allTextContents());
   if (new Set(opts.map(letterOf)).size !== 4) repeats++;
   easySample ??= opts.join(' | ');
-  await p.locator('.choice-row button.choice').first().click();
+  await p.locator('.choices button.choice').first().click();
   await p.click('#actions button');
 }
 log(`20 rounds, ${repeats} with a repeated first letter`);
@@ -239,8 +274,8 @@ await settings(async () => {
 });
 let regional = 0, mixed = 0, regionalSample = null;
 for (let i = 0; i < 40 && regional < 4; i++) {
-  const opts = strip(await p.locator('.choice-row button.choice').allTextContents());
-  await p.locator('.choice-row button.choice').first().click();
+  const opts = strip(await p.locator('.choices button.choice').allTextContents());
+  await p.locator('.choices button.choice').first().click();
   const name = await p.locator('.name').first().textContent();
   if (name.startsWith('Alolan')) {
     regional++;
@@ -254,7 +289,7 @@ log('sample:', regionalSample ?? 'none seen');
 
 await settings(async () => {
   await p.locator('.minis').first().getByText('All').click();
-  await p.click('#t-easyChoices'); await p.click('#t-speakChoices'); await p.click('#m-flip');
+  await p.click('#t-easyChoices'); await p.click('#m-flip');
 });
 log('back in flip mode, Guess button present:',
     (await p.locator('#actions button').textContent()).includes('Guess') ? 'yes \u2713' : 'NO');
