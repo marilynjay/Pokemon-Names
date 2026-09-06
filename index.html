@@ -129,6 +129,18 @@
     border-radius: 6px; padding: 1px 6px; line-height: 1.4;
   }
   @media (hover: none) { button.choice .n { display: none; } }
+  /* A speaker can't nest inside the answer button, so each option becomes a row
+     of two sibling buttons: answer on the left, "hear it" on the right. */
+  .choice-row { display: flex; gap: 8px; }
+  .choice-row button.choice { flex: 1; min-width: 0; }
+  .speak-choice {
+    appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 13px; width: 58px; min-height: 44px; flex: none; cursor: pointer;
+    font-size: 21px; display: grid; place-items: center; font-family: inherit;
+  }
+  .speak-choice:hover { border-color: var(--accent); }
+  .speak-choice.speaking { background: var(--accent); border-color: var(--accent); }
+  .speak-choice[disabled] { opacity: .4; cursor: not-allowed; }
   /* Four stacked buttons need the room, so let the card give some back. */
   .card.choosing { min-height: 0; }
   .card.choosing .art-slot { max-width: 190px; }
@@ -139,6 +151,8 @@
   @media (max-height: 660px) {
     .card.choosing { padding: 12px; }
     .card.choosing .art-slot { max-width: 124px; }
+    /* Speaker buttons keep a 44px tap target, so the artwork yields the rest. */
+    .card.choosing.with-speakers .art-slot { max-width: 92px; }
     button.choice { padding: 9px 10px; font-size: 15px; }
     .actions.choices { gap: 6px; }
   }
@@ -258,6 +272,7 @@ const GEN_NAMES = ['', 'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'A
 
 const DEFAULTS = {
   answerMode: 'flip',   // 'flip' = reveal and self-grade, 'choice' = pick one of four
+  speakChoices: false,  // a speaker button beside each choice, for pre-readers
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -294,6 +309,8 @@ function save() {
 
 let { settings, progress } = load();
 let DATA = null, CARDS = new Map(), GROUPS = new Map(), PHON = {};
+let BY_NAME = new Map();
+const REGION_WORDS = new Set(['Alolan', 'Galarian', 'Hisuian', 'Paldean']);
 
 // ---------------------------------------------------------------------- speech
 const speech = {
@@ -320,6 +337,19 @@ const speech = {
 if ('speechSynthesis' in window) {
   speech.refresh();
   speechSynthesis.addEventListener('voiceschanged', () => { speech.refresh(); if (view === 'settings') renderSettings(); });
+}
+
+// Options are plain names, and a minted one like "Alolan Roserade" has no card,
+// so the region prefix is split off and both halves respelled independently.
+function phoneticForName(name) {
+  const card = BY_NAME.get(name);
+  if (card) return phoneticFor(card);
+  const [first, ...rest] = name.split(' ');
+  if (rest.length && REGION_WORDS.has(first)) {
+    const base = rest.join(' ');
+    return `${PHON[first] ?? first} ${PHON[base] ?? base}`;
+  }
+  return PHON[name] ?? name;
 }
 
 // A regional form is spoken as "<region adjective> <species>", both respelled.
@@ -553,12 +583,20 @@ function renderCard() {
     card.append(makeArt(current), el('p', { className: 'hint' }, choosing ? 'Which one is this?' : 'Who is this?'));
     if (choosing) {
       card.classList.add('choosing');
+      card.classList.toggle('with-speakers', settings.speakChoices);
       actions.className = 'actions choices';
+      const canSpeak = 'speechSynthesis' in window;
       for (const [i, opt] of mcOptions.entries()) {
         const btn = el('button', { className: 'big choice', type: 'button' },
           [el('span', { className: 'n' }, String(i + 1)), el('span', {}, opt)]);
         btn.onclick = () => choose(opt);
-        actions.append(btn);
+        if (!settings.speakChoices) { actions.append(btn); continue; }
+        const say = el('button', {
+          className: 'speak-choice', type: 'button', disabled: !canSpeak,
+          ariaLabel: `Hear ${opt}`, title: `Hear ${opt}`,
+        }, '\u{1F50A}');
+        say.onclick = () => speech.say(phoneticForName(opt), (on) => say.classList.toggle('speaking', on));
+        actions.append(el('div', { className: 'choice-row' }, [btn, say]));
       }
       return;
     }
@@ -739,6 +777,11 @@ function renderSettings() {
     input.onchange = () => { settings.answerMode = value; save(); renderSettings(); startSession(); };
     mode.append(el('div', { className: 'row' }, [input, el('label', { htmlFor: `m-${value}` }, [label, el('small', {}, sub)])]));
   }
+  if (settings.answerMode === 'choice') {
+    mode.append(toggle('speakChoices', 'Speaker on every choice',
+      'Adds a \u{1F50A} button beside each answer so it can be heard \u2014 for anyone who cannot read yet',
+      () => render()));
+  }
   wrap.append(mode);
 
   // What to include
@@ -880,7 +923,7 @@ try {
     fetch('data/pronunciations.json').then((r) => r.ok ? r.json() : {}),
   ]);
   DATA = pokemon; PHON = pron;
-  for (const c of DATA.cards) CARDS.set(c.id, c);
+  for (const c of DATA.cards) { CARDS.set(c.id, c); BY_NAME.set(c.name, c); }
   for (const g of DATA.groups) GROUPS.set(g.id, g);
   startSession();
 } catch (err) {

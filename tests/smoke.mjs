@@ -190,7 +190,31 @@ for (let i = 0; i < 60 && !xatu; i++) {
 log('Xatu options:', xatu ? xatu.join(' | ') : 'not reached');
 log('all four start with X:', xatu && xatu.every((n) => n[0] === 'X') ? 'yes \u2713' : 'NO');
 
-await settings(async () => { await p.locator('.minis').first().getByText('All').click(); await p.click('#m-flip'); });
+log('--- speaker on every choice ---');
+await settings(async () => {
+  await p.locator('.minis').first().getByText('All').click();
+  await p.locator('.minis').nth(1).getByText('All').click();
+  await p.click('#t-speakChoices');
+});
+await p.waitForSelector('.choice-row');
+const rows = await p.locator('.choice-row').count();
+const speakers = await p.locator('.speak-choice').count();
+log(`${rows} rows, ${speakers} speakers`);
+const before = await p.evaluate(() => window.__spoken.length);
+await p.locator('.speak-choice').first().click();
+const said = (await p.evaluate(() => window.__spoken)).at(-1);
+const firstName = (await p.locator('.choice-row button.choice').first().textContent()).replace(/^\d/, '').trim();
+log(`tapping the speaker beside "${firstName}" said ${JSON.stringify(said)}`);
+// The critical bit: the speaker must not answer the question.
+log('speaker did not grade the card:', (await p.locator('.result').count()) === 0 ? 'yes \u2713' : 'NO \u2014 it answered!');
+log('speech actually fired:', (await p.evaluate(() => window.__spoken.length)) > before ? 'yes \u2713' : 'NO');
+// Tap targets stay finger-sized for small hands.
+const small = await p.locator('.speak-choice').evaluateAll((ns) =>
+  ns.filter((n) => n.getBoundingClientRect().height < 44).length);
+log('speakers below a 44px tap target:', small);
+await p.locator('.choice-row button.choice').first().click();
+log('answer button still grades:', (await p.locator('.result').count()) ? 'yes \u2713' : 'NO');
+await settings(async () => { await p.click('#t-speakChoices'); await p.click('#m-flip'); });
 log('back in flip mode, Guess button present:',
     (await p.locator('#actions button').textContent()).includes('Guess') ? 'yes \u2713' : 'NO');
 

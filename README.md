@@ -14,6 +14,13 @@ Two ways to answer, switchable in settings:
   which is what makes it hard: *Machop, Machoke, Machamp, Magikarp* rather than
   four unrelated names. Picking grades it for you.
 
+Multiple choice has a **Speaker on every choice** sub-option, which puts a 🔊
+button beside each answer. It reads that option aloud without answering, so a
+child who can't read yet can hear the four names and pick the one they know. The
+speaker and the answer are separate buttons — a speaker can't be nested inside
+the answer button without misfiring — and both keep a 44px tap target on the
+smallest phones.
+
 ## Running it
 
 It's a static page, but browsers block `fetch` from `file://`, so serve the folder:

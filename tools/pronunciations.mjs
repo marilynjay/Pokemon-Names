@@ -5,6 +5,9 @@
 // Style: hyphenated syllables, stressed syllable capitalised. Speech engines
 // ignore the case but it makes the on-card guide readable.
 export const PRONUNCIATIONS = {
+  // Invented decoy name, so it reads aloud as intended too.
+  'Xerxies': 'ZURK-seez',
+
   // --- Prefixes for regional variants ---
   'Alolan': 'uh-LOH-lun', 'Galarian': 'guh-LAIR-ee-un',
   'Hisuian': 'hih-SOO-ee-un', 'Paldean': 'pal-DEE-un',
