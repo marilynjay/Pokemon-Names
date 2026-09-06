@@ -123,7 +123,7 @@
   button.bad small { color: color-mix(in srgb, var(--bad) 70%, transparent); }
 
   /* One choice per row — names run to 19 characters and must not truncate. */
-  button.choice { position: relative; flex-direction: row; justify-content: center; gap: 9px; padding: 13px 12px; font-size: 15.5px; }
+  button.choice { position: relative; flex-direction: row; justify-content: center; gap: 9px; padding: 13px 12px; font-size: 15.5px; min-height: 44px; }
   /* Numbers pin to a tidy left column; symmetric padding keeps names centred. */
   button.choice:has(.n) { padding-left: 46px; padding-right: 46px; }
   button.choice .n {
@@ -143,8 +143,44 @@
   .speak-choice:hover { border-color: var(--accent); }
   .speak-choice.speaking { background: var(--accent); border-color: var(--accent); }
   .speak-choice[disabled] { opacity: .4; cursor: not-allowed; }
-  /* Four stacked buttons need the room, so let the card give some back. */
-  .card.choosing { min-height: 0; }
+
+  /* Easy mode is aimed at small hands: taller targets, bigger type, and more
+     air between the rows, since an adjacent button is what a stray tap hits. */
+  .actions.choices.roomy { gap: 14px; }
+  .actions.choices.roomy button.choice { min-height: 76px; font-size: 21px; padding: 14px 12px; }
+  .actions.choices.roomy button.choice:has(.n) { padding-left: 66px; padding-right: 66px; }
+  .actions.choices.roomy button.choice .n {
+    left: 14px; font-size: 21px; padding: 4px 13px; border-radius: 11px;
+    color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .actions.choices.roomy .speak-choice { width: 74px; min-height: 76px; font-size: 27px; }
+  .card.choosing.roomy .art-slot { max-width: 168px; }
+
+  /* Wind it back where the screen cannot take it. */
+  @media (max-height: 720px) {
+    .actions.choices.roomy { gap: 11px; }
+    .actions.choices.roomy button.choice { min-height: 64px; font-size: 19px; }
+    .actions.choices.roomy .speak-choice { min-height: 64px; width: 66px; font-size: 24px; }
+    .card.choosing.roomy .art-slot { max-width: 118px; }
+  }
+  /* Shortest phones: the prompt is text a pre-reader cannot use anyway, and the
+     picture says the same thing, so it yields its space to the buttons. */
+  @media (max-height: 600px) {
+    .card.choosing.roomy { padding: 9px; }
+    .card.choosing.roomy .hint { display: none; }
+  }
+  @media (max-width: 360px) {
+    .actions.choices.roomy button.choice { font-size: 17px; }
+    .actions.choices.roomy button.choice:has(.n) { padding-left: 54px; padding-right: 54px; }
+    .actions.choices.roomy button.choice .n { font-size: 18px; left: 10px; padding: 3px 10px; }
+    .actions.choices.roomy .speak-choice { width: 58px; }
+  }
+  /* Four stacked buttons need the room, so let the card give some back. The
+     artwork stops deriving its height from its width here and simply takes what
+     is left, letterboxing inside, so a short screen can never push a button off. */
+  .card.choosing { min-height: 0; overflow: hidden; }
+  .card.choosing .art-slot { aspect-ratio: auto; flex: 1 1 auto; min-height: 44px; }
   .card.choosing .art-slot { max-width: 190px; }
   .result { border-radius: 10px; padding: 7px 15px; font-weight: 700; font-size: 13.5px; margin-bottom: 10px; }
   .result.ok { background: var(--good-bg); color: var(--good); }
@@ -677,7 +713,8 @@ function renderCard() {
     if (choosing) {
       card.classList.add('choosing');
       card.classList.toggle('with-speakers', settings.speakChoices);
-      actions.className = 'actions choices';
+      card.classList.toggle('roomy', settings.easyChoices);
+      actions.className = `actions choices${settings.easyChoices ? ' roomy' : ''}`;
       const canSpeak = 'speechSynthesis' in window;
       for (const [i, opt] of mcOptions.entries()) {
         const btn = el('button', { className: 'big choice', type: 'button' },

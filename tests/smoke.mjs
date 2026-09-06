@@ -267,6 +267,30 @@ for (let i = 0; i < 20; i++) {
 log(`20 rounds, ${repeats} with a repeated first letter`);
 log('sample:', easySample);
 
+// Easy mode is for small fingers: the targets and numbers must actually grow,
+// and nothing may be pushed off the bottom of a short screen.
+const measure = () => p.evaluate(() => {
+  const rects = [...document.querySelectorAll('button.choice')].map((n) => n.getBoundingClientRect());
+  return {
+    height: Math.round(rects[0].height),
+    gap: Math.round(rects[1].top - rects[0].bottom),
+    number: Math.round(parseFloat(getComputedStyle(document.querySelector('button.choice .n')).fontSize)),
+    overflow: document.documentElement.scrollHeight - window.innerHeight,
+    lastOnScreen: [...document.querySelectorAll('.actions > *')].at(-1).getBoundingClientRect().bottom
+      <= window.innerHeight + 1,
+  };
+});
+const roomy = await measure();
+await settings(async () => { await p.click('#t-easyChoices'); });
+await p.waitForSelector('.choices button');
+const tight = await measure();
+await settings(async () => { await p.click('#t-easyChoices'); });
+await p.waitForSelector('.choices button');
+log(`button height ${tight.height}px -> ${roomy.height}px, gap ${tight.gap}px -> ${roomy.gap}px, number ${tight.number}px -> ${roomy.number}px`);
+log('targets grew:', roomy.height > tight.height && roomy.number > tight.number && roomy.gap > tight.gap ? 'yes \u2713' : 'NO');
+log('every target at least 44px:', roomy.height >= 44 && tight.height >= 44 ? 'yes \u2713' : 'NO');
+log('nothing pushed off screen:', roomy.overflow === 0 && roomy.lastOnScreen ? 'yes \u2713' : `NO (${roomy.overflow}px over)`);
+
 // A regional answer keeps its region, or the odd one out gives itself away.
 await settings(async () => {
   await p.locator('.minis').first().getByText('None').click();
