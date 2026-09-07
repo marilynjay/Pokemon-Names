@@ -80,6 +80,7 @@
      and a muted Poké Ball shows through until the artwork paints. */
   .art-slot { position: relative; width: 100%; max-width: 280px; aspect-ratio: 1; display: grid; place-items: center; }
   .card.back .art-slot { max-width: 200px; margin-bottom: 2px; }
+  .card.back.choosing .art-slot { max-width: 132px; }
   .art-slot svg { width: 42%; color: var(--ink-3); opacity: .22; }
   .art-slot.loading svg { animation: pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: .12; } 50% { opacity: .3; } }
@@ -177,6 +178,35 @@
     .speak-choice { width: 58px; }
   }
   .result { border-radius: 10px; padding: 7px 15px; font-weight: 700; font-size: 13.5px; margin-bottom: 10px; }
+  /* The decoys, revealed once the card is answered, so all four names land.
+     Minted names have no Pokémon behind them and are simply left out. */
+  #others { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .other {
+    flex: 1 1 0; min-width: 0; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 7px 5px 6px; text-align: center;
+  }
+  .thumb { position: relative; display: grid; place-items: center; width: 100%; max-width: 56px; aspect-ratio: 1; margin: 0 auto; }
+  .thumb svg { width: 58%; color: var(--ink-3); opacity: .25; }
+  .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .15s ease; }
+  .thumb img.ready { opacity: 1; }
+  .other b { display: block; font-size: 10.5px; font-weight: 600; color: var(--ink-2); line-height: 1.25; overflow-wrap: anywhere; }
+  @media (max-height: 720px) {
+    #others { margin-bottom: 9px; }
+    .other .thumb { max-width: 42px; }
+    .other b { font-size: 9.5px; }
+  }
+  /* With the strip on a short screen the answer card trims itself: the dex line
+     is the most expendable part, and it wraps to two lines at this width. */
+  @media (max-height: 700px) {
+    .card.with-others .facts { display: none; }
+    .card.with-others .name { font-size: 24px; }
+    .card.with-others .result { margin-bottom: 6px; }
+    .card.with-others .type-badges { margin-top: 4px; }
+    .card.with-others .say { margin-top: 3px; }
+    .card.with-others + #others .other .thumb { max-width: 38px; }
+    .card.with-others + #others .other b { font-size: 9px; }
+    .card.with-others + #others { margin-bottom: 6px; gap: 6px; }
+  }
   .result.ok { background: var(--good-bg); color: var(--good); }
   .result.no { background: var(--bad-bg); color: var(--bad); }
   .result.ok { animation: pop 420ms cubic-bezier(.2, 1.4, .4, 1); }
@@ -292,6 +322,7 @@
 
   <main id="study">
     <div class="card" id="card"><p class="hint">Loading the Pokédex…</p></div>
+    <div id="others" hidden></div>
     <div class="actions" id="actions"></div>
   </main>
 
@@ -317,6 +348,7 @@ const DEFAULTS = {
   easyChoices: false,   // decoys that sound different, rather than same-letter
   numberChoices: true,  // show 1-4 beside each answer
   fireworks: true,      // a burst of sparks on a correct pick
+  showOthers: true,     // reveal the decoys as thumbnails once answered
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -673,6 +705,18 @@ function typeBadge(type, input) {
   return node;
 }
 
+// Same fallback chain as the big card: official artwork, then the pixel sprite,
+// then the Poké Ball placeholder rather than a broken-image icon.
+function makeThumb(card) {
+  const box = el('span', { className: 'thumb' });
+  box.innerHTML = BALL_SVG;
+  const img = el('img', { src: artUrl(card), alt: '', decoding: 'async', loading: 'lazy' });
+  img.onload = () => img.classList.add('ready');
+  img.onerror = () => { img.onerror = null; img.src = `${DATA.spriteBase}/${card.id}.png`; };
+  box.append(img);
+  return box;
+}
+
 function speakButton(card) {
   const supported = 'speechSynthesis' in window;
   const btn = el('button', {
@@ -686,14 +730,18 @@ function speakButton(card) {
 function renderCard() {
   const card = $('#card');
   const actions = $('#actions');
-  card.textContent = ''; actions.textContent = '';
+  const others = $('#others');
+  card.textContent = ''; actions.textContent = ''; others.textContent = '';
+  others.hidden = true;
   card.className = 'card ' + (flipped ? 'back' : 'front');
+  // Both sides of a choice card have to yield space: the answer side carries the
+  // decoy strip and a Next button below it.
+  if (settings.answerMode === 'choice') card.classList.add('choosing');
 
   if (!flipped) {
     const choosing = settings.answerMode === 'choice';
     card.append(makeArt(current), el('p', { className: 'hint' }, choosing ? 'Which one is this?' : 'Who is this?'));
     if (choosing) {
-      card.classList.add('choosing');
       actions.className = 'actions choices';
       const canSpeak = 'speechSynthesis' in window;
       for (const [i, opt] of mcOptions.entries()) {
@@ -740,6 +788,14 @@ function renderCard() {
     const correct = mcPicked === current.name;
     card.prepend(el('div', { className: `result ${correct ? 'ok' : 'no'}` },
       correct ? '\u2713 Correct' : `\u2717 You picked ${mcPicked}`));
+    if (settings.showOthers) {
+      // Only decoys with a real card behind them: a minted name has no artwork,
+      // and borrowing the base species' picture would teach a form that doesn't exist.
+      const rest = mcOptions.filter((n) => n !== current.name).map((n) => BY_NAME.get(n)).filter(Boolean);
+      for (const other of rest) others.append(el('div', { className: 'other' }, [makeThumb(other), el('b', {}, other.name)]));
+      others.hidden = rest.length === 0;
+      card.classList.toggle('with-others', rest.length > 0);
+    }
     const onward = el('button', { className: 'big primary', type: 'button' },
       [el('span', {}, 'Next'), el('small', {}, queue.length ? `${queue.length} to go` : 'last one')]);
     onward.onclick = () => next();
@@ -900,6 +956,9 @@ function renderSettings() {
       'Shows 1\u20134 beside each answer', () => render()));
     mode.append(toggle('fireworks', 'Fireworks when you are right',
       'A burst of sparks over the card on a correct pick'));
+    mode.append(toggle('showOthers', 'Show the other Pok\u00e9mon',
+      'Once answered, the three wrong names appear as small pictures, so you learn all four',
+      () => render()));
   }
   wrap.append(mode);
 

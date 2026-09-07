@@ -249,6 +249,46 @@ log('number keys still answer with badges hidden:', (await p.locator('.result').
 await p.click('#actions button');
 await settings(async () => { await p.click('#t-numberChoices'); });
 
+log('--- the other three ---');
+if (await p.locator('.result').count()) await p.click('#actions button');
+await p.waitForSelector('.choices button');
+log('hidden while the question stands:', (await p.locator('#others').isVisible()) ? 'NO' : 'yes \u2713');
+const asked = strip(await p.locator('.choices button').allTextContents());
+await p.locator('.choices button').first().click();
+const answered = await p.locator('.name').first().textContent();
+const strip3 = await p.locator('.other b').allTextContents();
+log(`answer ${answered}; strip shows ${strip3.join(', ') || '(none)'}`);
+log('answer kept out of the strip:', strip3.includes(answered) ? 'NO' : 'yes \u2713');
+log('every strip entry was an option:', strip3.every((n) => asked.includes(n)) ? 'yes \u2713' : 'NO');
+log('each has a picture:', (await p.locator('.other .thumb img').count()) === strip3.length ? 'yes \u2713' : 'NO');
+log('Next still on screen:', await p.locator('#actions button').evaluate((n) =>
+  n.getBoundingClientRect().bottom <= window.innerHeight + 1) ? 'yes \u2713' : 'NO');
+
+// Minted decoys have no Pokémon behind them and must not borrow a picture.
+await settings(async () => {
+  await p.locator('.minis').first().getByText('None').click();
+  await p.locator('.gens label', { hasText: 'Gen 7' }).locator('input').check();
+});
+let mintedSeen = 0, mintedShown = 0;
+for (let i = 0; i < 30 && mintedSeen < 3; i++) {
+  const opts = strip(await p.locator('.choices button').allTextContents());
+  await p.locator('.choices button').first().click();
+  const name = await p.locator('.name').first().textContent();
+  if (name.startsWith('Alolan')) {
+    const shown = await p.locator('.other b').allTextContents();
+    const decoys = opts.filter((n) => n !== name);
+    const omitted = decoys.filter((n) => !shown.includes(n));
+    if (omitted.length) { mintedSeen++; mintedShown += shown.filter((n) => omitted.includes(n)).length; }
+  }
+  await p.click('#actions button');
+}
+log(`${mintedSeen} rounds omitted a minted decoy; minted names shown anyway: ${mintedShown}`);
+await settings(async () => { await p.locator('.minis').first().getByText('All').click(); await p.click('#t-showOthers'); });
+await p.waitForSelector('.choices button');
+await p.locator('.choices button').first().click();
+log('toggled off:', (await p.locator('#others').isVisible()) ? 'NO' : 'yes \u2713');
+await settings(async () => { await p.click('#t-showOthers'); });
+
 log('--- easier choices ---');
 await settings(async () => { await p.click('#t-easyChoices'); });
 await p.waitForSelector('.choices button');

@@ -18,11 +18,17 @@ Choice buttons are sized for a finger rather than a cursor — 76px tall with 14
 between them, since a stray tap lands on the neighbouring button — and the
 artwork shrinks to make room rather than pushing an option off a short screen.
 
-Multiple choice has four sub-options.
+Multiple choice has five sub-options.
 
 **Easier choices** swaps the same-letter decoys for ones that sound as different
 as possible — every option starts with a different letter, so *Bulbasaur, Klang,
 Shuppet, Timburr* rather than four names a beginner can't separate by ear.
+
+**Show the other Pokémon** (on by default) reveals the three decoys as small
+pictures once you've answered, so a round teaches four names rather than one.
+Minted names are left out: there is no such Pokémon to picture, and borrowing the
+base species' artwork would teach a form that doesn't exist. On a short screen the
+answer card drops its Pokédex line to make room.
 
 **Number the choices** (on by default) shows 1–4 beside each answer, pinned to a
 left column so they line up. The number keys work whether or not the badges show.
