@@ -27,7 +27,12 @@ Shuppet, Timburr* rather than four names a beginner can't separate by ear.
 **Show the other Pokémon** (on by default) reveals the three decoys as small
 pictures once you've answered, so a round teaches four names rather than one.
 Minted names are left out: there is no such Pokémon to picture, and borrowing the
-base species' artwork would teach a form that doesn't exist. On a short screen the
+base species' artwork would teach a form that doesn't exist.
+
+Tapping one opens a look at that Pokémon — the same card as an answer, with its
+artwork, types, pronunciation and Pokédex entry — and a **Back** button returns
+to your answer exactly as you left it. Nothing there is scored: it's a detour,
+not a card, so the schedule and your progress are untouched. On a short screen the
 answer card drops its Pokédex line to make room.
 
 **Number the choices** (on by default) shows 1–4 beside each answer, pinned to a
@@ -141,7 +146,7 @@ deck would make a seven-card deck repeat itself.
 ### Keyboard
 
 **Self-graded:** `Space` flip · `←` / `J` missed · `→` / `K` got it
-**Multiple choice:** `1`–`4` answer · `Space` next
+**Multiple choice:** `1`–`4` answer · `Space` next (or back, while looking at a decoy)
 Both: `P` pronounce · `Esc` close settings
 
 ## Repo layout

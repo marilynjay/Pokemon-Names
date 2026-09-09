@@ -264,6 +264,30 @@ log('each has a picture:', (await p.locator('.other .thumb img').count()) === st
 log('Next still on screen:', await p.locator('#actions button').evaluate((n) =>
   n.getBoundingClientRect().bottom <= window.innerHeight + 1) ? 'yes \u2713' : 'NO');
 
+// Tapping a decoy opens a look at it, and must leave the answer untouched.
+const meterBefore = await p.locator('#countPill').textContent();
+const savedBefore = await p.evaluate(() =>
+  JSON.stringify(JSON.parse(localStorage.getItem('pokemon-name-trainer/v1')).progress));
+await p.locator('.other').first().click();
+const peeked = await p.locator('.name').first().textContent();
+log(`tapped a decoy: now looking at ${peeked}`);
+log('it is one of the decoys:', strip3.includes(peeked) ? 'yes \u2713' : 'NO');
+log('shows its own details:',
+    (await p.locator('.type-badges .badge').count()) > 0 && (await p.locator('.facts').count()) > 0
+      ? 'yes \u2713' : 'NO');
+log('strip hidden while looking:', (await p.locator('#others').isVisible()) ? 'NO' : 'yes \u2713');
+log('hint switched to back:', (await p.locator('#kbdHint').textContent()).includes('back') ? 'yes \u2713' : 'NO');
+await p.click('#actions button');                       // Back
+log('back on the answer:', (await p.locator('.name').first().textContent()) === answered ? 'yes \u2713' : 'NO');
+log('strip restored:', await p.locator('.other').count(), 'entries');
+log('meter unchanged:', (await p.locator('#countPill').textContent()) === meterBefore ? 'yes \u2713' : 'NO');
+log('saved progress unchanged:', (await p.evaluate(() =>
+  JSON.stringify(JSON.parse(localStorage.getItem('pokemon-name-trainer/v1')).progress))) === savedBefore
+  ? 'yes \u2713' : 'NO \u2014 peeking wrote to progress!');
+await p.locator('.other').first().click();
+await p.keyboard.press('Escape');
+log('Escape also returns:', (await p.locator('.name').first().textContent()) === answered ? 'yes \u2713' : 'NO');
+
 // Minted decoys have no Pokémon behind them and must not borrow a picture.
 await settings(async () => {
   await p.locator('.minis').first().getByText('None').click();
