@@ -2,13 +2,14 @@
   "name": "pokemon-name-trainer",
   "version": "1.0.0",
   "private": true,
-  "description": "Flashcards for learning Pokémon names and how to say them.",
+  "description": "Flashcards for learning Pok\u00e9mon names and how to say them.",
   "type": "module",
   "scripts": {
     "serve": "python3 -m http.server 8123",
     "build-data": "node tools/build-data.mjs",
     "build-icons": "node tools/make-icons.mjs",
-    "test": "node tests/smoke.mjs"
+    "test": "node tests/smoke.mjs",
+    "build-cries": "node tools/build-cries.mjs"
   },
   "devDependencies": {
     "playwright": "^1.63.0"

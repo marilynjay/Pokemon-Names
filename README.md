@@ -143,6 +143,19 @@ Xurkitree. *Xerxies* fills the gap.
 Decoys can come from outside your current filters; requiring them to be in the
 deck would make a seven-card deck repeat itself.
 
+### Cries
+
+**Play the Pokémon's cry** (on by default) sounds the Pokémon's own cry whenever
+its name is revealed — flipping a card, answering a multiple-choice question, or
+looking at a decoy. With "Speak the name automatically" also on, the cry plays
+first and the name follows once it finishes, so they don't talk over each other.
+
+The cries are committed to `assets/cries` as MP3 rather than streamed from
+PokéAPI. PokéAPI publishes them as Ogg Vorbis, which Safari cannot decode at all,
+so streaming the originals would leave the feature silent on every iPhone and
+iPad. `npm run build-cries` fetches and converts all 1080 of them; at about 8 MB
+they are the bulk of this repository.
+
 ### Keyboard
 
 **Self-graded:** `Space` flip · `←` / `J` missed · `→` / `K` got it
@@ -160,6 +173,8 @@ Both: `P` pronounce · `Esc` close settings
 | `tools/pronunciations.mjs` | Source for the respellings |
 | `assets/icon.svg` | Home-screen icon, drawn by hand |
 | `tools/make-icons.mjs` | Rasterises that SVG to the PNGs iOS and Android need |
+| `assets/cries/` | One MP3 cry per card, converted from PokéAPI's Ogg |
+| `tools/build-cries.mjs` | Fetches and converts those cries |
 | `manifest.webmanifest` | Web-app metadata for installing to a home screen |
 | `tests/smoke.mjs` | Playwright walk-through of the study flow |
 
