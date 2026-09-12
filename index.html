@@ -353,6 +353,7 @@ const DEFAULTS = {
   numberChoices: true,  // show 1-4 beside each answer
   fireworks: true,      // a burst of sparks on a correct pick
   showOthers: true,     // reveal the decoys as thumbnails once answered
+  playCry: true,        // the Pokémon's own cry when its name is revealed
   order: 'family',
   keepFamilies: true,
   regionals: true,
@@ -520,6 +521,7 @@ let missedThisSession = new Map();
 
 function next() {
   clearBursts();
+  cry.stop();
   peeking = null;
   current = queue.shift() ?? null;
   flipped = false;
@@ -616,6 +618,31 @@ function assembleChoices(card, tiers, { distinctLetters = false } = {}) {
   if (picked.length < 3) walk(false);
   return shuffle([card.name, ...picked]);
 }
+
+// Cries live in the repo as MP3 rather than streaming PokéAPI's Ogg Vorbis,
+// which Safari cannot decode. One reused element, so a fast player never stacks
+// overlapping cries, and a missing file simply stays quiet.
+const cry = {
+  audio: null,
+  play(card, onEnd) {
+    if (!settings.playCry) { onEnd?.(); return; }
+    this.stop();
+    const audio = new Audio(`assets/cries/${card.id}.mp3`);
+    audio.volume = 0.55;
+    this.audio = audio;
+    const done = () => { if (this.audio === audio) this.audio = null; onEnd?.(); };
+    audio.addEventListener('ended', done, { once: true });
+    // Autoplay can be refused before the first interaction, and a file can be
+    // missing; either way the card carries on without a sound.
+    audio.addEventListener('error', done, { once: true });
+    audio.play().catch(done);
+  },
+  stop() {
+    if (!this.audio) return;
+    this.audio.pause();
+    this.audio = null;
+  },
+};
 
 const SPARK_COLOURS = ['#ffd93b', '#ff6b6b', '#4ecdc4', '#7c83ff', '#95e06c', '#ff9f43'];
 
@@ -773,7 +800,7 @@ function renderCard() {
     back.onclick = () => { peeking = null; render(); };
     actions.className = 'actions';
     actions.append(back);
-    if (settings.autoSpeak) looking.querySelector('.speak')?.click();
+    reveal(peeking, looking);
     return;
   }
 
@@ -844,7 +871,15 @@ function renderCard() {
     actions.append(wrong, right);
   }
 
-  if (settings.autoSpeak) say.querySelector('.speak')?.click();
+  reveal(current, say);
+}
+
+// A name has just been revealed: the cry first, then the spoken name once it has
+// finished, so the two don't talk over each other.
+function reveal(subject, say) {
+  const speakNow = () => { if (settings.autoSpeak) say.querySelector('.speak')?.click(); };
+  if (settings.playCry) cry.play(subject, speakNow);
+  else speakNow();
 }
 
 function flip() {
@@ -1051,6 +1086,7 @@ function renderSettings() {
   // Pronunciation
   const audio = el('div', { className: 'group' }, [el('h2', {}, 'Pronunciation')]);
   audio.append(
+    toggle('playCry', 'Play the Pok\u00e9mon\u2019s cry', 'Its own sound plays when the name is revealed'),
     toggle('showPhonetic', 'Show the phonetic spelling', 'e.g. Rayquaza — ray-KWAH-zuh'),
     toggle('autoSpeak', 'Speak the name automatically', 'Plays as soon as you flip the card'),
   );

@@ -249,6 +249,32 @@ log('number keys still answer with badges hidden:', (await p.locator('.result').
 await p.click('#actions button');
 await settings(async () => { await p.click('#t-numberChoices'); });
 
+log('--- cries ---');
+// Cries ship as MP3 in the repo because Safari cannot decode PokéAPI's Ogg.
+const cries = [];
+p.on('request', (r) => { if (/\/cries\/\d+\.mp3$/.test(r.url())) cries.push(r.url().split('/').pop()); });
+if (await p.locator('.result').count()) await p.click('#actions button');
+await p.waitForSelector('.choices button');
+cries.length = 0;
+log('silent while the question stands:', cries.length === 0 ? 'yes \u2713' : `NO (${cries})`);
+await p.locator('.choices button').first().click();
+await p.waitForTimeout(400);
+const shownId = await p.evaluate(() => document.querySelector('.art-slot img').src.match(/(\d+)\.png/)[1]);
+log('on reveal it plays', cries.join(', ') || 'nothing',
+    '- matching the card:', cries.includes(`${shownId}.mp3`) ? 'yes \u2713' : 'NO');
+await p.click('#actions button');
+await p.waitForSelector('.choices button');
+await settings(async () => { await p.click('#t-playCry'); });
+await p.waitForSelector('.choices button');
+cries.length = 0;
+await p.locator('.choices button').first().click();
+await p.waitForTimeout(400);
+log('silent once switched off:', cries.length === 0 ? 'yes \u2713' : `NO (${cries})`);
+await p.click('#actions button');
+await p.waitForSelector('.choices button');
+await settings(async () => { await p.click('#t-playCry'); });
+await p.waitForSelector('.choices button');
+
 log('--- the other three ---');
 if (await p.locator('.result').count()) await p.click('#actions button');
 await p.waitForSelector('.choices button');
